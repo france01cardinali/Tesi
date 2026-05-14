@@ -1,0 +1,12 @@
+node_modules
+dist
+.angular
+.git
+.idea
+.vscode
+coverage
+tmp
+out-tsc
+ssl
+npm-debug.log
+yarn-error.log

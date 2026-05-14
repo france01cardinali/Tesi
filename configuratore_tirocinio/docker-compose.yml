@@ -1,0 +1,30 @@
+services:
+  # Runtime produzione: build immagine statica Angular + Nginx.
+  configuratore:
+    container_name: configuratore_tirocinio
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+  # Runtime sviluppo HTTPS: esegue ng serve con certificati locali.
+  configuratore_https_dev:
+    container_name: configuratore_tirocinio_https_dev
+    image: node:20-alpine
+    working_dir: /app
+    command: >
+      sh -c "npm install --no-audit --no-fund &&
+      npx ng serve --ssl --ssl-cert ssl/192.168.1.12+1.pem --ssl-key ssl/192.168.1.12+1-key.pem --host 0.0.0.0 --port 4200"
+    volumes:
+      - .:/app
+      - configuratore_node_modules:/app/node_modules
+    ports:
+      - "4200:4200"
+    environment:
+      CHOKIDAR_USEPOLLING: "true"
+    restart: unless-stopped
+
+volumes:
+  # Volume dedicato per evitare reinstall node_modules ad ogni restart.
+  configuratore_node_modules:

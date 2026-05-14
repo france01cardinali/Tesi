@@ -1,0 +1,66 @@
+
+
+  <div id="setup-container" class="min-vh-100 d-flex align-items-center bg-light">
+    <div class="container">
+      <div class="row justify-content-center">
+        <div class="col-12 col-md-10 col-lg-7 col-xl-6">
+          <div class="card shadow border-0 rounded-4">
+            <div class="card-body p-4 p-md-5">
+              <div class="text-center mb-4">
+                <h1 class="h3 mb-1">Configuratore 3D</h1>
+                <p class="text-muted mb-0">Carica i file richiesti e genera le varianti.</p>
+              </div>
+
+              <!-- GLB -->
+              <div class="mb-3">
+                <label for="glb" class="form-label fw-semibold">Modello base</label>
+                <div class="input-group">
+                  <span class="input-group-text">🧩</span>
+                  <input type="file" id="glb" accept=".glb" class="form-control" />
+                </div>
+                <div class="form-text">Carica un file .glb</div>
+              </div>
+
+              <!-- JSON -->
+              <div class="mb-4">
+                <label for="json" class="form-label fw-semibold">Configurazione JSON</label>
+                <div class="input-group">
+                  <span class="input-group-text">🧾</span>
+                  <input type="file" id="json" accept=".json" class="form-control" />
+                </div>
+                <div class="form-text">Contiene regole/gruppi/varianti</div>
+              </div>
+
+              <!-- CTA (UNICO BOTTONE) -->
+              <button
+                id="generateBtn"
+                type="button"
+                class="btn btn-primary btn-lg w-100"
+                (click)="upload()"
+                [disabled]="isLoading"
+              >
+                @if (isLoading) {
+                  <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                  Caricamento...
+                } @else {
+                  Genera varianti e visualizza
+                }
+              </button>
+
+              <div class="d-flex gap-2 mt-3 flex-wrap">
+                <span class="badge text-bg-secondary">Offline-ready</span>
+                <span class="badge text-bg-secondary">GLB</span>
+                <span class="badge text-bg-secondary">JSON</span>
+              </div>
+            </div>
+          </div>
+
+      
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+
