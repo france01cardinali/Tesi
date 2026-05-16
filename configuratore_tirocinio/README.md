@@ -41,8 +41,8 @@ Server di default: `http://localhost:3001`.
 Esempio PowerShell (dalla root del progetto):
 
 ```powershell
-$env:HTTPS_KEY_PATH="ssl\localhost+2-key.pem"
-$env:HTTPS_CERT_PATH="ssl\localhost+2.pem"
+$env:HTTPS_KEY_PATH="ssl\10.46.123.138-key.pem"
+$env:HTTPS_CERT_PATH="ssl\10.46.123.138.pem"
 $env:HTTPS_ONLY="true"
 npm run backend
 ```

@@ -107,7 +107,7 @@ export class ThreeViewer {
     resize() { return this.core.resize(); }
 
     dispose() {
-        this.confGroupMesh.dispose();
+        //this.confGroupMesh.dispose();
         this.anchoring.dispose();
         this.placement.dispose();
         this.env.dispose();

@@ -1,28 +1,27 @@
 import { ConfigGroupMesh } from "./ConfigGroupMesh";
 import { exportJson } from "./writeJson";
-import { configColorMeshGroup } from "./ConfigColorGroupMesh";
-import { configDim } from "./configDim";
 import {ConfigVisibile} from "./ConfigVisibile"
+import { ConfigInfortationStart } from "./ConfigInformationStart";
+import { ConfigInformationPoint } from "./ConfigInformationPoint";
+
 
 export class createConfigurationSet {
     constructor(viewer){
         this.viewer = viewer;
         this.root = document.querySelector("#control .control-inner") || document.querySelector("#control");
-        this.groupmesh = new ConfigGroupMesh(this.viewer.core, this.root);
-        this.dimEnable = new configDim(this.root);
-        this.visible = new ConfigVisibile(this.viewer.core, this.root);
-        this.colorMesh = new configColorMeshGroup(this.root);
-        this.colorMesh.setGroupMesh(this.groupmesh);
+        /* this.groupmesh = new ConfigGroupMesh(this.viewer.core, this.root);
+        this.visible = new ConfigVisibile(this.viewer.core, this.root); */
+        this.informationStart = new ConfigInfortationStart(this.root);
+        this.infoPoint = new ConfigInformationPoint(this.viewer.core, this.root);
     }
     
 
     start(){
-        this.groupmesh.setTarget(this.viewer.core.modelRoot);
-        this.dimEnable.createInput();
-        this.colorMesh.createInput();
+        /* this.groupmesh.setTarget(this.viewer.core.modelRoot);
         this.visible.setTarget(this.viewer.core.modelRoot);
-        this.visible.createInput();
-
+        this.visible.createInput(); */
+        this.informationStart.createInput();
+        this.infoPoint.setTarget(this.viewer.core.modelRoot);
         this.createExportButton(this.root);
     }
 
@@ -34,10 +33,8 @@ export class createConfigurationSet {
 
         esporta.addEventListener("click", () => {
             exportJson(
-                this.groupmesh.getConfMesh(), 
-                this.dimEnable.getOption(), 
-                this.colorMesh.getColorVariantRule(), 
-                this.visible.getVisible());
+                
+                this.informationStart.getInformation());
         });
 
         this.root.appendChild(esporta);

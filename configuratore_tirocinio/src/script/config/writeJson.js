@@ -1,9 +1,9 @@
-export function exportJson(groupMesh, option, colorVariantRule, visible) {
+export function exportJson(groupMesh, visible, information) {
   const json = {};
   const groups = [];
   const regole = [];
 
-  // [1] groups
+  /* // [1] groups
   for (const [groupName, meshSet] of groupMesh) {
     groups.push({
       groupName,
@@ -13,39 +13,29 @@ export function exportJson(groupMesh, option, colorVariantRule, visible) {
 
   json.groups = groups;
 
-  // [10] regola dim
-  if (option && option.size > 0) {
-    const rawDimensions = option.get("dimensions") || [];
-    const dimensions = normalizeToArray(rawDimensions);
-
-    regole.push({
-      tipologia: option.get("tipologia") || "dim",
-      dimensions,
-      min: option.get("min") || "",
-      max: option.get("max") || "",
-      passo: option.get("passo") || ""
-    });
-  }
-
-  // [20] regola color-variant
-  if (
-    colorVariantRule &&
-    Array.isArray(colorVariantRule.specifica) &&
-    colorVariantRule.specifica.length > 0
-  ) {
-    regole.push(colorVariantRule);
-  }
-
   // [30] regola visible
   if (visible && visible.size > 0) {
     const parteRaw = visible.get("parte");
-    const parte = normalizeVisibleParte(parteRaw);
+    const parte = normalize(parteRaw);
 
     regole.push({
       tipologia: visible.get("tipologia") || "visible",
       parte
     });
+  } */
+
+  if(information){
+    const testoRaw = information.get("testo");
+    const testo = normalize(testoRaw);
+    
+    
+    regole.push({
+      tipologia: information.get("tipologia") || "information",
+      testo  
+    });
+
   }
+  
 
   regole.push({
     tipologia: "ar"
@@ -58,14 +48,9 @@ export function exportJson(groupMesh, option, colorVariantRule, visible) {
   downloadJSON(json, "config.json");
 }
 
-function normalizeToArray(value) {
-  if (value == null) return [];
-  if (Array.isArray(value)) return value;
-  if (value instanceof Set) return Array.from(value);
-  return [value];
-}
 
-function normalizeVisibleParte(value) {
+
+function normalize(value) {
   if (value == null) return "";
 
   if (value instanceof Set) {
