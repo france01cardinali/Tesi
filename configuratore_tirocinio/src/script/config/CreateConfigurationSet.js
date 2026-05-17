@@ -32,9 +32,10 @@ export class createConfigurationSet {
         esporta.className = "btn btn-success w-100";
 
         esporta.addEventListener("click", () => {
-            exportJson(
-                
-                this.informationStart.getInformation());
+            exportJson({
+                information: this.informationStart.getInformation(),
+                infoPoints: this.infoPoint.getInfoPoints()
+            });
         });
 
         this.root.appendChild(esporta);

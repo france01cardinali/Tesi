@@ -1,19 +1,21 @@
-export function exportJson(groupMesh, visible, information) {
+export function exportJson({ groupMesh, visible, information, infoPoints } = {}) {
   const json = {};
   const groups = [];
   const regole = [];
 
-  /* // [1] groups
-  for (const [groupName, meshSet] of groupMesh) {
-    groups.push({
-      groupName,
-      meshs: Array.from(meshSet)
-    });
+  if (groupMesh) {
+    for (const [groupName, meshSet] of groupMesh) {
+      groups.push({
+        groupName,
+        meshs: Array.from(meshSet)
+      });
+    }
   }
 
-  json.groups = groups;
+  if (groups.length > 0) {
+    json.groups = groups;
+  }
 
-  // [30] regola visible
   if (visible && visible.size > 0) {
     const parteRaw = visible.get("parte");
     const parte = normalize(parteRaw);
@@ -22,7 +24,7 @@ export function exportJson(groupMesh, visible, information) {
       tipologia: visible.get("tipologia") || "visible",
       parte
     });
-  } */
+  }
 
   if(information){
     const testoRaw = information.get("testo");
@@ -34,6 +36,17 @@ export function exportJson(groupMesh, visible, information) {
       testo  
     });
 
+  }
+
+  if(infoPoints && infoPoints.length > 0){
+    regole.push({
+      tipologia: "informationPoint",
+      infoPoint: infoPoints.map((infoPoint) => ({
+        name: infoPoint.name,
+        parte: normalize(infoPoint.parte),
+        descrizione: infoPoint.descrizione
+      }))
+    });
   }
   
 

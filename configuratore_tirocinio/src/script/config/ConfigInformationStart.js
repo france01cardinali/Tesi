@@ -31,12 +31,16 @@ export class ConfigInfortationStart{
         confirm.textContent = "Salva";
         confirm.className = "btn btn-success w-100";
 
+        const feedback = document.createElement("small");
+        feedback.className = "text-success d-block mt-1";
+
         confirm.addEventListener("click", () => {
             this.information.set("testo", textarea.value);
+            feedback.textContent = "Descrizione salvata";
         })
         
 
-        div.append(label,textarea,confirm);
+        div.append(label,textarea,confirm,feedback);
         
 
         this.root.append(div);
