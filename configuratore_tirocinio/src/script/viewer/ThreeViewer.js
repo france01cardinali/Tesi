@@ -7,7 +7,6 @@ import { ARGestures } from "../ar/ARGesture.js";
 import { ARPlacementDetection } from "../ar/ARPlacementDetection.js";
 import {ARAnchorController} from "../ar/ARAnchorController.js";
 import { ARAnchoringCoordinator } from "../ar/ARAnchoringCoordinator.js";
-import { ConfigGroupMesh } from "../config/ConfigGroupMesh.js";
 
 
 export class ThreeViewer {
@@ -107,7 +106,6 @@ export class ThreeViewer {
     resize() { return this.core.resize(); }
 
     dispose() {
-        //this.confGroupMesh.dispose();
         this.anchoring.dispose();
         this.placement.dispose();
         this.env.dispose();

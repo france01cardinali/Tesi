@@ -288,6 +288,10 @@ body.ar-mode .ui-fab {
 
 #ar-overlay #control.open{ bottom: 0; }
 
+body.ar-mode .initial-info-section {
+  display: none !important;
+}
+
 /* testi leggibili in AR */
 body.ar-mode #control label,
 body.ar-mode #control .ctrl-title,

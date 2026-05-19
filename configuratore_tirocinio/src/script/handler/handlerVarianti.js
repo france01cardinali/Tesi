@@ -1,23 +1,20 @@
-import {createDim} from "../ui/createDim"
-import {createSelect} from "../ui/createSelect";
 import { jsonStore } from "../config/ConfJson";
-import { createVisible } from "../ui/createVisible";
 import { createARButton } from "../ui/createARButton";
+import { createInizialInfo } from "../ui/createInizialInfo";
+import { createInfoPoint } from "../ui/createInfoPoint";
 
 export async function loadVariant(viewer){
     // Interpreta le regole in ordine e costruisce UI/comportamenti runtime.
     const varianti = await jsonStore.getRegole();
     for (const variante of varianti) {
         switch (variante.tipologia) {
-            case "color-variant":
-                await createSelect(viewer);
-            break; 
-
-            case "dim":
-                await createDim(viewer, variante);
+            
+            case "information":
+                 createInizialInfo(viewer, variante.testo);
             break;
-            case "visible":
-                 createVisible(viewer, variante.parte);
+
+            case "informationPoint":
+                 createInfoPoint(viewer, variante.infoPoint);
             break;
 
             case "ar":

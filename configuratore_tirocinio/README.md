@@ -47,6 +47,15 @@ $env:HTTPS_ONLY="true"
 npm run backend
 ```
 
+
+```powershell
+test:
+$env:HTTPS_KEY_PATH="ssl\localhost+2-key.pem"
+$env:HTTPS_CERT_PATH="ssl\localhost+2.pem"
+$env:HTTPS_ONLY="true"
+npm run backend
+```
+
 I path relativi sono risolti rispetto alla cartella corrente da cui lanci `npm run backend`.
 
 ### API
@@ -113,6 +122,10 @@ Then open `http://localhost:8080/`.
 
 To run the Angular dev server in HTTPS (same behavior as your `ng serve --ssl ...` command):
 npm start -- --host 0.0.0.0 --port 4200 --ssl --ssl-cert ssl\10.46.123.138.pem --ssl-key ssl\10.46.123.138-key.pem
+
+
+test:
+npm start -- --host 0.0.0.0 --port 4200 --ssl --ssl-cert ssl\localhost+2.pem --ssl-key ssl\localhost+2-key.pem
 
 
 ```bash

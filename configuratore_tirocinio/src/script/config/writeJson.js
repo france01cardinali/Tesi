@@ -3,29 +3,6 @@ export function exportJson({ groupMesh, visible, information, infoPoints } = {})
   const groups = [];
   const regole = [];
 
-  if (groupMesh) {
-    for (const [groupName, meshSet] of groupMesh) {
-      groups.push({
-        groupName,
-        meshs: Array.from(meshSet)
-      });
-    }
-  }
-
-  if (groups.length > 0) {
-    json.groups = groups;
-  }
-
-  if (visible && visible.size > 0) {
-    const parteRaw = visible.get("parte");
-    const parte = normalize(parteRaw);
-
-    regole.push({
-      tipologia: visible.get("tipologia") || "visible",
-      parte
-    });
-  }
-
   if(information){
     const testoRaw = information.get("testo");
     const testo = normalize(testoRaw);
