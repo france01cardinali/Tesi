@@ -9,7 +9,7 @@ export class ARModelPlacer {
     this.tmpBox = new THREE.Box3();
   }
 
-  place({ lastValidHit, modelRoot, reticleCtrl, getReticleWorldPosition }) {
+  place({ lastValidHit, modelRoot}) {
     // Guardie: placement possibile solo con hit valida e modelRoot disponibile.
     if (!lastValidHit) {
       return { ok: false, reason: "no valid hit" };
@@ -18,10 +18,7 @@ export class ARModelPlacer {
       return { ok: false, reason: "no modelRoot" };
     }
 
-    const hitPos = lastValidHit.transform.position;
-    let yFloor = hitPos.y;
-    let targetCenterX = hitPos.x;
-    let targetCenterZ = hitPos.z;
+    
 
     // Centro locale del footprint reticle (utile per modelli non centrati).
     const centerXLocal = Number.isFinite(reticleCtrl?.reticleCenterX) ? reticleCtrl.reticleCenterX : 0;

@@ -1,4 +1,5 @@
 import { exportJson } from "./writeJson";
+import { ConfigInformationEnd } from "./ConfigInformationEnd";
 import { ConfigInfortationStart } from "./ConfigInformationStart";
 import { ConfigInformationPoint } from "./ConfigInformationPoint";
 
@@ -8,6 +9,7 @@ export class createConfigurationSet {
         this.viewer = viewer;
         this.root = document.querySelector("#control .control-inner") || document.querySelector("#control");
         this.informationStart = new ConfigInfortationStart(this.root);
+        this.informationEnd = new ConfigInformationEnd(this.root);
         this.infoPoint = new ConfigInformationPoint(this.viewer.core, this.root);
     }
     
@@ -15,6 +17,7 @@ export class createConfigurationSet {
     start(){
         this.informationStart.createInput();
         this.infoPoint.setTarget(this.viewer.core.modelRoot);
+        this.informationEnd.createInput();
         this.createExportButton(this.root);
     }
 
@@ -27,6 +30,7 @@ export class createConfigurationSet {
         esporta.addEventListener("click", () => {
             exportJson({
                 information: this.informationStart.getInformation(),
+                finalInformation: this.informationEnd.getInformation(),
                 infoPoints: this.infoPoint.getInfoPoints()
             });
         });

@@ -1,5 +1,6 @@
 import { jsonStore } from "../config/ConfJson";
 import { createARButton } from "../ui/createARButton";
+import { createFinalInfo } from "../ui/createFinalInfo";
 import { createInizialInfo } from "../ui/createInizialInfo";
 import { createInfoPoint } from "../ui/createInfoPoint";
 
@@ -11,6 +12,10 @@ export async function loadVariant(viewer){
             
             case "information":
                  createInizialInfo(viewer, variante.testo);
+            break;
+
+            case "finalInformation":
+                 createFinalInfo(viewer, variante.testo);
             break;
 
             case "informationPoint":

@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { renderMarkdownToElement } from "./renderMarkdown.js";
 
 export function createInfoPoint(viewer, infoPoint) {
   if (viewer._infoPointRuntime) {
@@ -328,8 +329,10 @@ class InfoPointRuntime {
     this.panel.querySelector(".info-point-panel-title").textContent =
       info.name || parts[0] || "Information point";
 
-    this.panel.querySelector(".info-point-panel-description").textContent =
-      info.descrizione || "";
+    renderMarkdownToElement(
+      this.panel.querySelector(".info-point-panel-description"),
+      info.descrizione || ""
+    );
 
     this.panel.style.display = "block";
 

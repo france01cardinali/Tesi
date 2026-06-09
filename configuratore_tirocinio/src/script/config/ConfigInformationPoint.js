@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { createMarkdownEditor } from "./createMarkdownEditor";
 
 export class ConfigInformationPoint{
     constructor(core, root){
@@ -291,20 +292,18 @@ export class ConfigInformationPoint{
     createDescrtionInfoPoint(){
         const wrapper = document.createElement("div");
         wrapper.className = "mt-2";
-        
-        const label = document.createElement("label");
-        label.className = "form-label";
-        label.setAttribute("for", "descrizioneInfoPoint");
-        label.textContent = "Descrizione";
 
-        const textarea = document.createElement("textarea");
-        textarea.className = "form-control";
-        textarea.id = "descrizioneInfoPoint";
-        textarea.rows = 4;
-        textarea.placeholder = "Scrivi qui il testo...";
-        textarea.addEventListener("input", () => {
-            this.infoPointDescriptionTemp = textarea.value;
-            feedback.textContent = "";
+        const feedback = document.createElement("small");
+        feedback.className = "text-success d-block mt-1";
+        
+        const editor = createMarkdownEditor({
+            id: "descrizioneInfoPoint",
+            labelText: "Descrizione",
+            placeholder: "Scrivi qui la descrizione...",
+            onInput: (value) => {
+                this.infoPointDescriptionTemp = value;
+                feedback.textContent = "";
+            }
         });
 
         // bottone finale
@@ -312,15 +311,12 @@ export class ConfigInformationPoint{
         confirm.textContent = "Salva";
         confirm.className = "btn btn-success w-100";
 
-        const feedback = document.createElement("small");
-        feedback.className = "text-success d-block mt-1";
-
         confirm.addEventListener("click", () => {
-            this.infoPointDescriptionTemp = textarea.value;
+            this.infoPointDescriptionTemp = editor.getValue();
             feedback.textContent = "Descrizione information point salvata";
         })
         
-        wrapper.append(label, textarea, confirm, feedback);
+        wrapper.append(editor.wrapper, confirm, feedback);
         return wrapper;
     }
 

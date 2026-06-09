@@ -1,4 +1,6 @@
 
+import { renderMarkdownToElement } from "./renderMarkdown.js";
+
 export function createInizialInfo(viewer, testo) {
     const root = document.querySelector("#control .control-inner") || document.querySelector("#control");
     if (!root) return;
@@ -12,10 +14,10 @@ export function createInizialInfo(viewer, testo) {
     section.style.maxWidth = "100%";
     section.style.overflow = "hidden";
 
-    const p = document.createElement("p");
+    const p = document.createElement("div");
     p.id = "testoDescrizione";
     p.className = "form-control-plaintext";
-    p.textContent = testo;
+    renderMarkdownToElement(p, testo);
 
     p.style.whiteSpace = "normal";
     p.style.overflowWrap = "break-word";

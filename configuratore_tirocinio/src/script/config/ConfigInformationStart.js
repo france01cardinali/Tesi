@@ -1,4 +1,4 @@
-import * as THREE from "three";
+import { createMarkdownEditor } from "./createMarkdownEditor";
 
 export class ConfigInfortationStart{
     constructor(root){
@@ -6,6 +6,7 @@ export class ConfigInfortationStart{
         this.testo = "";
         this.information = new Map();
         this.information.set("tipologia", "information");
+        this.information.set("formato", "markdown");
 
 
     }
@@ -15,32 +16,31 @@ export class ConfigInfortationStart{
         const div = document.createElement("section");
         div.className = "ctrl-section";
 
-        const label = document.createElement("label");
-        label.className = "form-label";
-        label.setAttribute("for", "descrizione");
-        label.textContent = "Descrizione";
+        const title = document.createElement("div");
+        title.textContent = "Testo iniziale";
+        title.style.fontWeight = "600";
+        title.style.marginBottom = "10px";
 
-        const textarea = document.createElement("textarea");
-        textarea.className = "form-control";
-        textarea.id = "descrizione";
-        textarea.rows = 4;
-        textarea.placeholder = "Scrivi qui il testo...";
+        const editor = createMarkdownEditor({
+            id: "descrizione",
+            placeholder: "Scrivi qui il testo iniziale..."
+        });
 
         // bottone finale
         const confirm = document.createElement("button");
         confirm.textContent = "Salva";
-        confirm.className = "btn btn-success w-100";
+        confirm.className = "btn btn-success w-100 mt-2";
 
         const feedback = document.createElement("small");
         feedback.className = "text-success d-block mt-1";
 
         confirm.addEventListener("click", () => {
-            this.information.set("testo", textarea.value);
-            feedback.textContent = "Descrizione salvata";
+            this.information.set("testo", editor.getValue());
+            feedback.textContent = "Testo introduttivo salvato";
         })
         
 
-        div.append(label,textarea,confirm,feedback);
+        div.append(title,editor.wrapper,confirm,feedback);
         
 
         this.root.append(div);

@@ -1,4 +1,4 @@
-export function exportJson({ groupMesh, visible, information, infoPoints } = {}) {
+export function exportJson({ groupMesh, visible, information, finalInformation, infoPoints } = {}) {
   const json = {};
   const groups = [];
   const regole = [];
@@ -10,9 +10,21 @@ export function exportJson({ groupMesh, visible, information, infoPoints } = {})
     
     regole.push({
       tipologia: information.get("tipologia") || "information",
+      formato: information.get("formato") || "markdown",
       testo  
     });
 
+  }
+
+  if(finalInformation){
+    const testoRaw = finalInformation.get("testo");
+    const testo = normalize(testoRaw);
+
+    regole.push({
+      tipologia: finalInformation.get("tipologia") || "finalInformation",
+      formato: finalInformation.get("formato") || "markdown",
+      testo
+    });
   }
 
   if(infoPoints && infoPoints.length > 0){
@@ -21,6 +33,7 @@ export function exportJson({ groupMesh, visible, information, infoPoints } = {})
       infoPoint: infoPoints.map((infoPoint) => ({
         name: infoPoint.name,
         parte: normalize(infoPoint.parte),
+        formato: "markdown",
         descrizione: infoPoint.descrizione
       }))
     });

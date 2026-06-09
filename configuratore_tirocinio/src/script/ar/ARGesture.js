@@ -45,12 +45,6 @@ export class ARGestures {
 
     this.debugEl = document.querySelector("#gesture-debug");
 
-    this.placementDetection;
-    this.reticleCtrl;
-    this.anchorCtrl = null;
-    this.onAnchorResumeRequested = null;
-    this._anchorSuspendedByGesture = false;
-
     this.onPointerDown = this.onPointerDown.bind(this);
     this.onPointerMove = this.onPointerMove.bind(this);
     this.onPointerUp = this.onPointerUp.bind(this);
@@ -67,19 +61,8 @@ export class ARGestures {
     this.targetRot = rotObj3d;
   }
 
-  setPlacementDetection(pd){
-    // Recupera reticle controller dal modulo placement.
-    this.placementDetection = pd;
-    this.reticleCtrl = this.placementDetection.reticleCtrl;
-  }
-
-  setAnchorController(anchorCtrl) {
-    this.anchorCtrl = anchorCtrl;
-  }
-
-  setOnAnchorResumeRequested(callback) {
-    this.onAnchorResumeRequested = callback;
-  }
+  
+  
 
 
 
@@ -119,7 +102,6 @@ export class ARGestures {
     this._activePointers.clear();
     this.active = false;
     this.mode = null;
-    this._anchorSuspendedByGesture = false;
   }
 
 
@@ -156,19 +138,6 @@ export class ARGestures {
     this.debugEl.textContent = msg;
   }
 
-  suspendAnchorIfNeeded() {
-    // Durante gesto, sospende temporaneamente anchor follow.
-    if (this._anchorSuspendedByGesture) return;
-    this.anchorCtrl?.suspendAnchoring?.();
-    this._anchorSuspendedByGesture = true;
-  }
-
-  requestAnchorResumeIfNeeded() {
-    // A fine gesto, richiede re-anchor tramite coordinator esterno.
-    if (!this._anchorSuspendedByGesture) return;
-    this._anchorSuspendedByGesture = false;
-    this.onAnchorResumeRequested?.();
-  }
 
 
 
@@ -363,13 +332,11 @@ export class ARGestures {
       this._activePointers.clear();
       this.active = false;
       this.mode = null;
-      this.requestAnchorResumeIfNeeded();
       return;
     }
 
     //se non ci sono pointer attivi
     if (nextCount === 0) {
-      this.requestAnchorResumeIfNeeded();
       this._activePointers.clear();
       this.active = false;
       this.mode = null;

@@ -1,0 +1,537 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TODO progetto AR</title>
+  <style>
+    :root {
+      --bg: #eef2f6;
+      --panel: #ffffff;
+      --ink: #18212f;
+      --muted: #657085;
+      --line: #d8dee8;
+      --primary: #1e63e9;
+      --primary-dark: #174db4;
+      --done: #16824a;
+      --todo: #b45309;
+      --partial: #57534e;
+      --shadow: 0 18px 48px rgba(24, 33, 47, 0.12);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(238, 242, 246, 0.92)),
+        radial-gradient(circle at top left, rgba(30, 99, 233, 0.18), transparent 34%),
+        var(--bg);
+      color: var(--ink);
+    }
+
+    .page {
+      width: min(1120px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 40px 0;
+    }
+
+    header {
+      display: grid;
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .title-row {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(30px, 4vw, 48px);
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      max-width: 760px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 17px;
+      line-height: 1.55;
+    }
+
+    .progress-box {
+      min-width: 220px;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.78);
+      box-shadow: 0 8px 24px rgba(24, 33, 47, 0.08);
+    }
+
+    .progress-label {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .progress-value {
+      margin-top: 6px;
+      font-size: 28px;
+      font-weight: 800;
+    }
+
+    .progress-track {
+      height: 8px;
+      margin-top: 10px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #dbe3ef;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--primary), var(--done));
+      transition: width 180ms ease;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+
+    button {
+      min-height: 40px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 9px 14px;
+      background: #ffffff;
+      color: var(--ink);
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button:hover {
+      border-color: var(--primary);
+      color: var(--primary-dark);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .section {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--line);
+      background: #f8fafc;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .section-note {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .list {
+      display: grid;
+      gap: 0;
+    }
+
+    .item {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 16px;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .item:last-child {
+      border-bottom: 0;
+    }
+
+    .item.done {
+      background: #f0fdf4;
+    }
+
+    .item-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 6px;
+      font-size: 15px;
+      font-weight: 800;
+    }
+
+    .item-text {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 14px;
+    }
+
+    .tag {
+      flex: 0 0 auto;
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .tag.todo {
+      background: #fff7ed;
+      color: var(--todo);
+    }
+
+    .tag.partial {
+      background: #f5f5f4;
+      color: var(--partial);
+    }
+
+    .tag.done {
+      background: #dcfce7;
+      color: var(--done);
+    }
+
+    .toggle {
+      align-self: start;
+      min-width: 112px;
+    }
+
+    .item.done .toggle {
+      border-color: #86efac;
+      background: #dcfce7;
+      color: var(--done);
+    }
+
+    .wide {
+      grid-column: 1 / -1;
+    }
+
+    footer {
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 860px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .item {
+        grid-template-columns: 1fr;
+      }
+
+      .toggle {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <div class="title-row">
+        <div>
+          <h1>Checklist progetto AR</h1>
+          <p class="subtitle">Lista operativa delle cose mancanti per completare la piattaforma docente/studente. I pulsanti salvano lo stato nel browser con localStorage.</p>
+        </div>
+        <div class="progress-box" aria-live="polite">
+          <div class="progress-label">Avanzamento manuale</div>
+          <div class="progress-value" id="progressText">0/0</div>
+          <div class="progress-track">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="toolbar">
+      <button type="button" id="markAll">Segna tutto fatto</button>
+      <button type="button" id="clearAll">Azzera checklist</button>
+    </div>
+
+    <section class="grid" id="checklist">
+      <article class="section">
+        <div class="section-header">
+          <h2>Piattaforma</h2>
+          <span class="section-note">Da progettare</span>
+        </div>
+        <div class="list">
+          <div class="item" data-id="login-docente-studente">
+            <div>
+              <p class="item-title"><span class="tag todo">Manca</span> Login docente e studente</p>
+              <p class="item-text">Aggiungere accesso al sistema e ruoli separati per docente e studente.</p>
+            </div>
+            <button class="toggle" type="button">Da fare</button>
+          </div>
+          <div class="item" data-id="elenco-esperienze">
+            <div>
+              <p class="item-title"><span class="tag todo">Manca</span> Elenco esperienze disponibili</p>
+              <p class="item-text">Lo studente oggi carica manualmente GLB e JSON; serve una lista di esperienze selezionabili.</p>
+            </div>
+            <button class="toggle" type="button">Da fare</button>
+          </div>
+          <div class="item" data-id="persistenza-esperienze">
+            <div>
+              <p class="item-title"><span class="tag todo">Manca</span> Salvataggio persistente esperienze</p>
+              <p class="item-text">Salvare configurazioni e modelli su backend/storage invece di dipendere solo da download/upload manuale.</p>
+            </div>
+            <button class="toggle" type="button">Da fare</button>
+          </div>
+        </div>
+      </article>
+
+      <article class="section">
+        <div class="section-header">
+          <h2>Configuratore docente</h2>
+          <span class="section-note">Parziale</span>
+        </div>
+        <div class="list">
+          <div class="item" data-id="metadata-esperienza">
+            <div>
+              <p class="item-title"><span class="tag todo">Manca</span> Metadati esperienza</p>
+              <p class="item-text">Aggiungere titolo, descrizione, autore/docente, eventuale id esperienza e riferimento stabile al modello 3D.</p>
+            </div>
+            <button class="toggle" type="button">Da fare</button>
+          </div>
+          <div class="item" data-id="testo-conclusivo">
+            <div>
+              <p class="item-title"><span class="tag todo">Manca</span> Testo conclusivo</p>
+              <p class="item-text">Il configuratore gestisce un testo iniziale, ma non ancora un testo finale da mostrare alla chiusura.</p>
+            </div>
+            <button class="toggle" type="button">Da fare</button>
+          </div>
+          <div class="item" data-id="markdown-editor">
+            <div>
+              <p class="item-title"><span class="tag todo">Manca</span> Scrittura contenuti in Markdown</p>
+              <p class="item-text">I campi sono textarea semplici; serve supporto Markdown e possibilmente anteprima.</p>
+            </div>
+            <button class="toggle" type="button">Da fare</button>
+          </div>
+        </div>
+      </article>
+
+      <article class="section">
+        <div class="section-header">
+          <h2>JSON esperienza</h2>
+          <span class="section-note">Da consolidare</span>
+        </div>
+        <div class="list">
+          <div class="item" data-id="schema-json">
+            <div>
+              <p class="item-title"><span class="tag partial">Parziale</span> Schema JSON definitivo</p>
+              <p class="item-text">Il JSON esporta information, informationPoint e ar, ma manca uno schema completo e documentato.</p>
+            </div>
+            <button class="toggle" type="button">Da fare</button>
+          </div>
+          <div class="item" data-id="json-model-ref">
+            <div>
+              <p class="item-title"><span class="tag todo">Manca</span> Riferimento al modello 3D nel JSON</p>
+              <p class="item-text">Il requisito chiede che il file contenga il riferimento al modello, non solo regole e contenuti.</p>
+            </div>
+            <button class="toggle" type="button">Da fare</button>
+          </div>
+          <div class="item" data-id="json-yaml-decisione">
+            <div>
+              <p class="item-title"><span class="tag todo">Manca</span> Decisione JSON/YAML</p>
+              <p class="item-text">Il progetto usa gia JSON: conviene fissare JSON come formato ufficiale ed eliminare il dubbio nel testo.</p>
+            </div>
+            <button class="toggle" type="button">Da fare</button>
+          </div>
+        </div>
+      </article>
+
+      <article class="section">
+        <div class="section-header">
+          <h2>Esperienza studente</h2>
+          <span class="section-note">Parziale</span>
+        </div>
+        <div class="list">
+          <div class="item" data-id="markdown-render">
+            <div>
+              <p class="item-title"><span class="tag todo">Manca</span> Rendering Markdown</p>
+              <p class="item-text">Testo iniziale e pannelli POI usano textContent; serve renderizzare Markdown in HTML in modo sicuro.</p>
+            </div>
+            <button class="toggle" type="button">Da fare</button>
+          </div>
+          <div class="item" data-id="pannello-finale">
+            <div>
+              <p class="item-title"><span class="tag todo">Manca</span> Pannello finale</p>
+              <p class="item-text">Alla chiusura dell'esperienza deve comparire il testo conclusivo definito dal docente.</p>
+            </div>
+            <button class="toggle" type="button">Da fare</button>
+          </div>
+          <div class="item" data-id="flusso-chiusura">
+            <div>
+              <p class="item-title"><span class="tag partial">Parziale</span> Chiusura esperienza</p>
+              <p class="item-text">Serve un flusso chiaro per terminare AR, chiudere i pannelli e passare alla schermata finale.</p>
+            </div>
+            <button class="toggle" type="button">Da fare</button>
+          </div>
+        </div>
+      </article>
+
+      <article class="section wide">
+        <div class="section-header">
+          <h2>Gesture AR</h2>
+          <span class="section-note">Controllo progetto: src/script/ar/ARGesture.js</span>
+        </div>
+        <div class="list">
+          <div class="item" data-id="gesture-rotazione-3-assi">
+            <div>
+              <p class="item-title"><span class="tag partial">Parziale</span> Ruotare il modello in tutte le direzioni</p>
+              <p class="item-text">Ora la rotazione AR usa un dito e modifica solo rotation.y. Va estesa a pitch/yaw/roll o a una rotazione libera controllabile.</p>
+            </div>
+            <button class="toggle" type="button">Da fare</button>
+          </div>
+          <div class="item" data-id="gesture-spostamento-3d">
+            <div>
+              <p class="item-title"><span class="tag partial">Parziale</span> Spostare il modello in tutte le direzioni</p>
+              <p class="item-text">Ora il pan a due dita sposta sul piano orizzontale rispetto alla camera e blocca la quota Y. Serve movimento anche verticale/profondita senza vincolo rigido al piano.</p>
+            </div>
+            <button class="toggle" type="button">Da fare</button>
+          </div>
+          <div class="item" data-id="gesture-senza-placement">
+            <div>
+              <p class="item-title"><span class="tag partial">Parziale</span> Gesture indipendenti dal placement</p>
+              <p class="item-text">Il codice usa ancora reticleCtrl, panPlaneY e setPosition con validazione reticle. Le gesture devono funzionare senza preoccuparsi del placement dopo il posizionamento iniziale.</p>
+            </div>
+            <button class="toggle" type="button">Da fare</button>
+          </div>
+          <div class="item" data-id="gesture-mappatura-comandi">
+            <div>
+              <p class="item-title"><span class="tag todo">Manca</span> Mappatura gesture chiara</p>
+              <p class="item-text">Definire gesture non ambigue: per esempio un dito ruota, due dita traslano, pinch scala, controllo dedicato per asse verticale o profondita.</p>
+            </div>
+            <button class="toggle" type="button">Da fare</button>
+          </div>
+        </div>
+      </article>
+
+      <article class="section wide">
+        <div class="section-header">
+          <h2>Stabilita tecnica</h2>
+          <span class="section-note">Bloccante build</span>
+        </div>
+        <div class="list">
+          <div class="item" data-id="handler-occlusion">
+            <div>
+              <p class="item-title"><span class="tag todo">Manca</span> Sistemare handlerAROcclusion.js</p>
+              <p class="item-text">La build fallisce per import mancante in ViewerCore.js: src/script/handler/handlerAROcclusion.js.</p>
+            </div>
+            <button class="toggle" type="button">Da fare</button>
+          </div>
+          <div class="item" data-id="test-build">
+            <div>
+              <p class="item-title"><span class="tag todo">Manca</span> Verifica build e test finale</p>
+              <p class="item-text">Dopo le correzioni, eseguire npm run build e un test manuale di configuratore, visualizzatore e AR.</p>
+            </div>
+            <button class="toggle" type="button">Da fare</button>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <footer>
+      File generato come checklist autonoma. Lo stato dei pulsanti viene salvato solo nel browser in cui apri questa pagina.
+    </footer>
+  </main>
+
+  <script>
+    const storageKey = "todo-progetto-ar-state";
+    const items = Array.from(document.querySelectorAll(".item"));
+    const progressText = document.querySelector("#progressText");
+    const progressFill = document.querySelector("#progressFill");
+    const state = JSON.parse(localStorage.getItem(storageKey) || "{}");
+
+    function save() {
+      localStorage.setItem(storageKey, JSON.stringify(state));
+    }
+
+    function renderItem(item) {
+      const id = item.dataset.id;
+      const done = Boolean(state[id]);
+      const button = item.querySelector(".toggle");
+      item.classList.toggle("done", done);
+      button.textContent = done ? "Fatto" : "Da fare";
+      button.setAttribute("aria-pressed", String(done));
+    }
+
+    function renderProgress() {
+      const doneCount = items.filter((item) => state[item.dataset.id]).length;
+      const total = items.length;
+      const pct = total ? Math.round((doneCount / total) * 100) : 0;
+      progressText.textContent = `${doneCount}/${total}`;
+      progressFill.style.width = `${pct}%`;
+    }
+
+    function renderAll() {
+      items.forEach(renderItem);
+      renderProgress();
+    }
+
+    items.forEach((item) => {
+      item.querySelector(".toggle").addEventListener("click", () => {
+        const id = item.dataset.id;
+        state[id] = !state[id];
+        save();
+        renderAll();
+      });
+    });
+
+    document.querySelector("#markAll").addEventListener("click", () => {
+      items.forEach((item) => {
+        state[item.dataset.id] = true;
+      });
+      save();
+      renderAll();
+    });
+
+    document.querySelector("#clearAll").addEventListener("click", () => {
+      items.forEach((item) => {
+        state[item.dataset.id] = false;
+      });
+      save();
+      renderAll();
+    });
+
+    renderAll();
+  </script>
+</body>
+</html>

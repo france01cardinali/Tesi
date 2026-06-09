@@ -46,23 +46,7 @@ this.core.modelRoot.remove(this.model);
 this.pivot.add(this.model);
 this.model.position.sub(centerLocal);  // porta il centro sull'origine del pivot
 this.core.modelRoot.add(this.pivot);
-    this.model.traverse((child) => {
-      if (!child.isMesh) return;
-      if (Array.isArray(child.material)) {
-        child.material.forEach((mat) => {
-          if (!mat) return;
-          mat.depthTest = true;
-          mat.depthWrite = true;
-          mat.needsUpdate = true;
-        });
-      } else {
-        const mat = child.material;
-        if (!mat) return;
-        mat.depthTest = true;
-        mat.depthWrite = true;
-        mat.needsUpdate = true;
-      }
-    });
+    
 
     this.baseSizeMeters = this.getDimensions();
 
@@ -111,39 +95,7 @@ this.core.modelRoot.add(this.pivot);
     this.core.controls.update();
   }
 
-  setNonUniformScaleByCm({ xCm, yCm, zCm }) {
-    // Converte cm target -> ratio rispetto alle dimensioni base (in metri).
-    if (!this.baseSizeMeters) this.baseSizeMeters = this.getDimensions();
-    const sx = (xCm / 100) / this.baseSizeMeters.x;
-    const sy = (yCm / 100) / this.baseSizeMeters.y;
-    const sz = (zCm / 100) / this.baseSizeMeters.z;
+  
 
-    const clampScale = (value) => {
-      // Guardia numerica + soglia minima.
-      if (!Number.isFinite(value)) return 1;
-      return Math.max(this.minScaleRatio, value);
-    };
-
-    this.core.modelRoot.scale.set(
-      clampScale(sx),
-      clampScale(sy),
-      clampScale(sz)
-    );
-
-    this.updateControlsTargetToModelCenter();
-  }
-
-
-  setDefaultDim(){
-    this.core.modelRoot.scale.set(1,1,1);
-    this.updateControlsTargetToModelCenter();
-  }
-
-
-  //test
-  testDim(){
-    this.core.modelRoot.scale.set(0.1,0.1,0.1);
-    this.updateControlsTargetToModelCenter();
-  }
 
 }

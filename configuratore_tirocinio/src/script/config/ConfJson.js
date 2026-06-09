@@ -22,39 +22,7 @@ class ConfJson {
     return  handlerJson.getRegole(this.#data);
  }
 
- getRegMaterials(){
-   return handlerJson.getAllRegMaterials(this.#data);
- }
-
- getMeshsByNameGroup(nameGroup){
-    return handlerJson.getMeshsByNameGroup(this.#data,nameGroup )
- }
-
- getGroupByMesh(mesh){
-    return handlerJson.getGroupNameByMesh(this.#data,mesh)
- }
  
- getAllMeshsOfGroupByMesh(mesh){
-    return handlerJson.getAllMeshsOfGroupByMesh(this.#data,mesh);
- }
- 
-
- getAllMaterialByNameGroup(nameGroup){
-   return handlerJson.getAllMaterialByNameGroup(this.#data, nameGroup);
- }
-
- getAllMesh(){
-   return handlerJson.getAllMesh(this.#data);
- }
-
- getAllGroupName(){
-   return handlerJson.getAllGroupName(this.#data);
- }
-
- getMaterialByName(material){
-   return handlerJson.getMaterialByName(this.#data,material);
- }
-
 
 }
 

@@ -44,15 +44,5 @@ export async function createSelect(viewer) {
 
   }
 
-//test
-/*    const ret = document.createElement('button');
-  
-
-  ret.addEventListener('click', () => {
-    viewer.returnToInizialPosition();
-  });
- 
-  section.appendChild(ret); 
-*/
   root.appendChild(section);
 }

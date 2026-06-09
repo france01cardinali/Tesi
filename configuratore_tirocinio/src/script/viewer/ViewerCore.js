@@ -1,6 +1,5 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { handlerAROcclusion } from "../handler/handlerAROcclusion.js";
 
 export class ViewerCore {
     constructor({canvas, container, onFrame}) {
@@ -32,10 +31,7 @@ export class ViewerCore {
         this.modelRoot = new THREE.Group();
         this.scene.add(this.modelRoot);
 
-        this.occlusion = new handlerAROcclusion({
-            renderer: this.renderer,
-            modelRoot: this.modelRoot,
-        });
+        
 
         this.renderer.xr.addEventListener("sessionstart", () => {
             // In AR disabilita orbit controls desktop.
@@ -53,7 +49,7 @@ export class ViewerCore {
                 this.controls.update();
             }
 
-            this.occlusion.onSessionEnd();
+            
             this.resize();
         });
 
@@ -64,14 +60,7 @@ export class ViewerCore {
 
         this.resize();
 
-        this.virtualBuffer = {
-            rt: null,
-            met: new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }),
-            buf: null,
-            w: 0,
-            h: 0,
-        };
-
+    
         this.frameN = 0;
 
         this.resize();
@@ -84,18 +73,9 @@ export class ViewerCore {
                 }
             }
 
-            // Callback esterno (placement/anchor/altro) prima del render.
             onFrame?.(time, frame);
 
-            if (this.renderer.xr.isPresenting && frame) {
-                // In AR: sincronizza viewport XR e depth occlusion.
-                this._resizeFromXRFrame(frame);
-                this._updateOcclusionFromXRFrame(frame, this.renderer.xr.getCamera(this.camera));
-            } else {
-                // Fuori AR: disattiva blocco occlusione shader.
-                this._setOcclusionHasDepth(false);
-            }
-
+            
             const cameraToUse = this.renderer.xr.isPresenting
                 ? this.renderer.xr.getCamera(this.camera)
                 : this.camera;
@@ -103,20 +83,9 @@ export class ViewerCore {
             this.renderer.render(this.scene, cameraToUse);
         });
 
-        this.anchorCtrl = null;
     }
 
-    registerOcclusionMaterial(material) {
-        this.occlusion.registerMaterial(material);
-    }
-
-    _setOcclusionHasDepth(on) {
-        this.occlusion.setHasDepth(on);
-    }
-
-    _updateOcclusionFromXRFrame(frame, cameraToUse) {
-        this.occlusion.updateFromXRFrame(frame, cameraToUse);
-    }
+   
 
     resize() {
         const rect = this.container.getBoundingClientRect();
@@ -133,7 +102,6 @@ export class ViewerCore {
     dispose() {
         window.removeEventListener("resize", this._onResize);
         this.controls.dispose();
-        this.occlusion.dispose();
         this.renderer.dispose();
     }
 

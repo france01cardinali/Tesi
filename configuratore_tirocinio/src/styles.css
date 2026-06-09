@@ -45,9 +45,9 @@ html, body {
    CONTROL PANEL (default desktop)
 ========================= */
 #control {
-  width: 320px;
-  min-width: 260px;
-  max-width: 420px;
+  width: 50vw;
+  min-width: 380px;
+  max-width: none;
 
   background: #ffffff;
   border-right: 1px solid #ddd;
@@ -417,4 +417,135 @@ body.ar-mode #threeCanvas{
 
 .pcr-app .pcr-selection .pcr-palette .pcr-app visible {
   height: 920px !important;
+}
+
+.markdown-content {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.markdown-content > :first-child {
+  margin-top: 0;
+}
+
+.markdown-content > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-content h3,
+.markdown-content h4,
+.markdown-content h5 {
+  margin: 0 0 8px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.markdown-content p,
+.markdown-content ul,
+.markdown-content ol {
+  margin: 0 0 10px;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  padding-left: 20px;
+}
+
+.markdown-content code {
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.markdown-content a {
+  color: #0d6efd;
+}
+
+.markdown-legend {
+  margin-top: 8px;
+  color: #6c757d;
+  font-size: 13px;
+}
+
+.markdown-legend summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.markdown-legend-content {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.markdown-legend-content code {
+  display: block;
+  padding: 5px 7px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.06);
+  color: #212529;
+  white-space: normal;
+}
+
+.markdown-preview-title {
+  margin-top: 12px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #6c757d;
+}
+
+.markdown-preview {
+  min-height: 52px;
+  padding: 10px 12px;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  background: #ffffff;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.markdown-preview h3,
+.markdown-preview h4,
+.markdown-preview h5 {
+  font-size: 14px;
+}
+
+.markdown-preview p,
+.markdown-preview ul,
+.markdown-preview ol {
+  margin-bottom: 7px;
+}
+
+.final-info-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000003;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.62);
+}
+
+.final-info-panel {
+  width: min(560px, 100%);
+  max-height: min(720px, calc(100dvh - 40px));
+  overflow: auto;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1f2937;
+  padding: 24px;
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.34);
+}
+
+.final-info-panel h2 {
+  margin: 0 0 14px;
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.final-info-panel .btn {
+  margin-top: 18px;
+  width: 100%;
 }
