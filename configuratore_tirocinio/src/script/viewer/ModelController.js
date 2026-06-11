@@ -72,7 +72,7 @@ this.core.modelRoot.add(this.pivot);
       center.z + maxDim * 1.8
     );
 
-    // OrbitControls are desktop-only. In AR, placement must be driven by hit-test/tap.
+    // OrbitControls are desktop-only. In AR, the model is positioned by the first screen tap.
     if (!this.core.renderer.xr.isPresenting && this.core.controls) {
       this.core.controls.target.copy(center);
       this.core.controls.update();

@@ -109,7 +109,7 @@ class InfoPointRuntime {
 
       marker.userData.infoPoint = info;
 
-      // Figlio di modelRoot: segue scala, rotazione, AR placement e gesture del modello.
+      // Figlio di modelRoot: segue scala, rotazione e gesture AR del modello.
       this.modelRoot.add(marker);
       this.markers.push(marker);
     });

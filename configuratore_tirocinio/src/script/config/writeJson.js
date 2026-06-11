@@ -1,4 +1,11 @@
 export function exportJson({ groupMesh, visible, information, finalInformation, infoPoints } = {}) {
+  const json = buildConfigJson({ groupMesh, visible, information, finalInformation, infoPoints });
+  downloadJSON(json, "config.json");
+  return json;
+}
+
+
+export function buildConfigJson({ groupMesh, visible, information, finalInformation, infoPoints } = {}) {
   const json = {};
   const groups = [];
   const regole = [];
@@ -46,9 +53,7 @@ export function exportJson({ groupMesh, visible, information, finalInformation, 
 
   json.regole = regole;
 
-  
-
-  downloadJSON(json, "config.json");
+  return json;
 }
 
 

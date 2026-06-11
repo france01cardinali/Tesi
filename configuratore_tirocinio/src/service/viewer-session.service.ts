@@ -59,6 +59,10 @@ export class ViewerSessionService {
     return this.id;
   }
 
+  getGlbFile(){
+    return this.glbFile;
+  }
+
   clear() {
     this.glbFile = undefined;
     this.jsonFile = undefined;

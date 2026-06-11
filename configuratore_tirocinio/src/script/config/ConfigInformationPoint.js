@@ -219,6 +219,20 @@ export class ConfigInformationPoint{
         return this.infoPoints;
     }
 
+    setInfoPoints(infoPoints = []){
+        this.infoPoints = infoPoints
+            .filter((infoPoint) => infoPoint && infoPoint.name)
+            .map((infoPoint) => ({
+                name: infoPoint.name,
+                parte: Array.isArray(infoPoint.parte)
+                    ? infoPoint.parte
+                    : (infoPoint.parte ? [infoPoint.parte] : []),
+                descrizione: infoPoint.descrizione || ""
+            }));
+
+        this.report();
+    }
+
     getInfoPointName(){
         return this.infoPoints.map((infoPoint) => infoPoint.name);
     }

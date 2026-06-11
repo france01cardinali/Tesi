@@ -5,6 +5,9 @@ const fs = require('fs');
 const fsp = require('fs/promises');
 const path = require('path');
 const { randomUUID } = require('crypto');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const db = require('./db');
 
 const app = express();
 
@@ -20,6 +23,9 @@ const HTTPS_CA_PATH = String(process.env.HTTPS_CA_PATH || '').trim();
 const HTTPS_PASSPHRASE = String(process.env.HTTPS_PASSPHRASE || '');
 const HTTPS_ONLY = String(process.env.HTTPS_ONLY || 'false').toLowerCase() === 'true';
 const TEXTURES_DIR = path.join(__dirname, '..', 'public', 'texture');
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
+const BCRYPT_ROUNDS = Number(process.env.BCRYPT_ROUNDS || 12);
 
 
 app.use(express.json({ limit: MAX_BODY_BYTES }));
@@ -29,8 +35,8 @@ app.use('/textures', express.static(TEXTURES_DIR));
 
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', CORS_ORIGIN);
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') {
     res.sendStatus(204);
@@ -46,6 +52,407 @@ app.use((req, res, next) => {
 
 app.get('/api/health', (req, res) => {
   res.json({ ok: true });
+});
+
+
+
+
+app.post('/api/auth/register', async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    const name = normalizeText(body.name);
+    const email = normalizeEmail(body.email);
+    const password = String(body.password || '');
+
+    const validationError = validateTeacherCredentials({ name, email, password });
+    if (validationError) {
+      res.status(400).json({ error: validationError });
+      return;
+    }
+
+    const existingTeacher = db
+      .prepare('SELECT id FROM teachers WHERE email = ?')
+      .get(email);
+
+    if (existingTeacher) {
+      res.status(409).json({ error: 'Email gia registrata' });
+      return;
+    }
+
+    const id = randomUUID();
+    const createdAt = new Date().toISOString();
+    const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+    const accessCode = createUniqueTeacherAccessCode(name);
+
+    db.prepare(`
+      INSERT INTO teachers (id, name, email, password_hash, access_code, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(id, name, email, passwordHash, accessCode, createdAt);
+
+    const teacher = {
+      id,
+      name,
+      email,
+      accessCode,
+      createdAt
+    };
+
+    res.status(201).json({
+      token: signTeacherToken(teacher),
+      teacher
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+
+
+
+app.post('/api/auth/login', async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    const email = normalizeEmail(body.email);
+    const password = String(body.password || '');
+
+    if (!email || !password) {
+      res.status(400).json({ error: 'Email e password sono obbligatorie' });
+      return;
+    }
+
+    const teacherRow = db
+      .prepare('SELECT * FROM teachers WHERE email = ?')
+      .get(email);
+
+    if (!teacherRow) {
+      res.status(401).json({ error: 'Credenziali non valide' });
+      return;
+    }
+
+    const passwordMatches = await bcrypt.compare(password, teacherRow.password_hash);
+    if (!passwordMatches) {
+      res.status(401).json({ error: 'Credenziali non valide' });
+      return;
+    }
+
+    const teacher = teacherResponseFromRow(teacherRow);
+
+    res.json({
+      token: signTeacherToken(teacher),
+      teacher
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+
+
+
+app.get('/api/auth/me', requireAuth, (req, res) => {
+  res.json({ teacher: req.teacher });
+});
+
+
+
+
+app.get('/api/experiences', requireAuth, (req, res, next) => {
+  try {
+    const rows = db
+      .prepare(`
+        SELECT id, title, description, created_at, updated_at
+        FROM experiences
+        WHERE teacher_id = ?
+        ORDER BY updated_at DESC, created_at DESC
+      `)
+      .all(req.teacher.id);
+
+    res.json({
+      experiences: rows.map(experienceResponseFromRow)
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+
+
+
+app.post('/api/experiences', requireAuth, async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    const title = normalizeText(body.title);
+    const description = normalizeText(body.description);
+    const glbBase64 = stripDataUrlPrefix(body.glbBase64);
+    const configJson = body.configJson;
+
+    if (!title) {
+      res.status(400).json({ error: 'Titolo esperienza obbligatorio' });
+      return;
+    }
+
+    if (!glbBase64) {
+      res.status(400).json({ error: 'GLB esperienza obbligatorio' });
+      return;
+    }
+
+    if (!configJson || typeof configJson !== 'object' || Array.isArray(configJson)) {
+      res.status(400).json({ error: 'Configurazione JSON non valida' });
+      return;
+    }
+
+    const glbBuffer = Buffer.from(glbBase64, 'base64');
+    if (!glbBuffer.length) {
+      res.status(400).json({ error: 'GLB vuoto o base64 non valido' });
+      return;
+    }
+
+    const id = randomUUID();
+    const now = new Date().toISOString();
+    const experienceDir = experienceDirFromId(id);
+    const glbFilePath = path.join(experienceDir, 'model.glb');
+    const jsonFilePath = path.join(experienceDir, 'config.json');
+    const relativeGlbPath = path.join('storage', 'experiences', id, 'model.glb');
+    const relativeJsonPath = path.join('storage', 'experiences', id, 'config.json');
+
+    await fsp.mkdir(experienceDir, { recursive: true });
+    await Promise.all([
+      fsp.writeFile(glbFilePath, glbBuffer),
+      fsp.writeFile(jsonFilePath, JSON.stringify(configJson, null, 2), 'utf8')
+    ]);
+
+    db.prepare(`
+      INSERT INTO experiences (
+        id,
+        teacher_id,
+        title,
+        description,
+        glb_path,
+        json_path,
+        created_at,
+        updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      id,
+      req.teacher.id,
+      title,
+      description,
+      relativeGlbPath,
+      relativeJsonPath,
+      now,
+      now
+    );
+
+    const row = db
+      .prepare('SELECT id, title, description, created_at, updated_at FROM experiences WHERE id = ?')
+      .get(id);
+
+    res.status(201).json({ experience: experienceResponseFromRow(row) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+
+
+
+app.get('/api/experiences/:id', requireAuth, (req, res, next) => {
+  try {
+    const row = loadTeacherExperienceOrNull(req.teacher.id, req.params.id);
+
+    if (!row) {
+      res.status(404).json({ error: 'Esperienza non trovata' });
+      return;
+    }
+
+    res.json({ experience: experienceResponseFromRow(row) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+
+
+
+app.get('/api/experiences/:id/glb', requireAuth, (req, res, next) => {
+  try {
+    const row = loadTeacherExperienceOrNull(req.teacher.id, req.params.id);
+
+    if (!row) {
+      res.status(404).json({ error: 'Esperienza non trovata' });
+      return;
+    }
+
+    const filePath = path.join(__dirname, row.glb_path);
+    streamFile(res, filePath, 'model/gltf-binary', 'model.glb', fs.statSync(filePath).size);
+  } catch (err) {
+    next(err);
+  }
+});
+
+
+
+
+app.get('/api/experiences/:id/json', requireAuth, (req, res, next) => {
+  try {
+    const row = loadTeacherExperienceOrNull(req.teacher.id, req.params.id);
+
+    if (!row) {
+      res.status(404).json({ error: 'Esperienza non trovata' });
+      return;
+    }
+
+    const filePath = path.join(__dirname, row.json_path);
+    streamFile(res, filePath, 'application/json', 'config.json', fs.statSync(filePath).size);
+  } catch (err) {
+    next(err);
+  }
+});
+
+
+
+
+app.put('/api/experiences/:id', requireAuth, async (req, res, next) => {
+  try {
+    const row = loadTeacherExperienceOrNull(req.teacher.id, req.params.id);
+
+    if (!row) {
+      res.status(404).json({ error: 'Esperienza non trovata' });
+      return;
+    }
+
+    const body = req.body || {};
+    const title = normalizeText(body.title);
+    const description = normalizeText(body.description);
+    const configJson = body.configJson;
+
+    if (!title) {
+      res.status(400).json({ error: 'Titolo esperienza obbligatorio' });
+      return;
+    }
+
+    if (!configJson || typeof configJson !== 'object' || Array.isArray(configJson)) {
+      res.status(400).json({ error: 'Configurazione JSON non valida' });
+      return;
+    }
+
+    const now = new Date().toISOString();
+    await fsp.writeFile(path.join(__dirname, row.json_path), JSON.stringify(configJson, null, 2), 'utf8');
+
+    db.prepare(`
+      UPDATE experiences
+      SET title = ?, description = ?, updated_at = ?
+      WHERE id = ? AND teacher_id = ?
+    `).run(title, description, now, req.params.id, req.teacher.id);
+
+    const updatedRow = loadTeacherExperienceOrNull(req.teacher.id, req.params.id);
+    res.json({ experience: experienceResponseFromRow(updatedRow) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+
+
+
+app.delete('/api/experiences/:id', requireAuth, async (req, res, next) => {
+  try {
+    const row = loadTeacherExperienceOrNull(req.teacher.id, req.params.id);
+
+    if (!row) {
+      res.status(404).json({ error: 'Esperienza non trovata' });
+      return;
+    }
+
+    db.prepare('DELETE FROM experiences WHERE id = ? AND teacher_id = ?')
+      .run(req.params.id, req.teacher.id);
+
+    await fsp.rm(experienceDirFromId(req.params.id), { recursive: true, force: true });
+    res.sendStatus(204);
+  } catch (err) {
+    next(err);
+  }
+});
+
+
+
+
+app.get('/api/public/teachers/:code/experiences', (req, res, next) => {
+  try {
+    const accessCode = normalizeAccessCode(req.params.code);
+
+    if (!accessCode) {
+      res.status(400).json({ error: 'Codice docente obbligatorio' });
+      return;
+    }
+
+    const teacher = db
+      .prepare('SELECT id, name, access_code, created_at FROM teachers WHERE access_code = ?')
+      .get(accessCode);
+
+    if (!teacher) {
+      res.status(404).json({ error: 'Codice docente non trovato' });
+      return;
+    }
+
+    const rows = db
+      .prepare(`
+        SELECT id, title, description, created_at, updated_at
+        FROM experiences
+        WHERE teacher_id = ?
+        ORDER BY updated_at DESC, created_at DESC
+      `)
+      .all(teacher.id);
+
+    res.json({
+      teacher: {
+        name: teacher.name,
+        accessCode: teacher.access_code
+      },
+      experiences: rows.map(experienceResponseFromRow)
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+
+
+
+app.get('/api/public/experiences/:id/glb', (req, res, next) => {
+  try {
+    const row = loadExperienceOrNull(req.params.id);
+
+    if (!row) {
+      res.status(404).json({ error: 'Esperienza non trovata' });
+      return;
+    }
+
+    const filePath = path.join(__dirname, row.glb_path);
+    streamFile(res, filePath, 'model/gltf-binary', 'model.glb', fs.statSync(filePath).size);
+  } catch (err) {
+    next(err);
+  }
+});
+
+
+
+
+app.get('/api/public/experiences/:id/json', (req, res, next) => {
+  try {
+    const row = loadExperienceOrNull(req.params.id);
+
+    if (!row) {
+      res.status(404).json({ error: 'Esperienza non trovata' });
+      return;
+    }
+
+    const filePath = path.join(__dirname, row.json_path);
+    streamFile(res, filePath, 'application/json', 'config.json', fs.statSync(filePath).size);
+  } catch (err) {
+    next(err);
+  }
 });
 
 
@@ -335,6 +742,11 @@ function uploadDirFromId(id) {
 }
 
 
+function experienceDirFromId(id) {
+  return path.join(STORE_DIR, 'experiences', id);
+}
+
+
 
 
 function metaPathFromId(id) {
@@ -442,6 +854,7 @@ async function cleanupExpiredUploads() {
   await Promise.all(
     entries
       .filter((entry) => entry.isDirectory())
+      .filter((entry) => entry.name !== 'experiences')
       .map(async (entry) => {
         try {
           const meta = await readUploadMeta(entry.name);
@@ -479,6 +892,167 @@ function streamFile(res, filePath, mime, filename, size) {
   });
 
   rs.pipe(res);
+}
+
+
+function requireAuth(req, res, next) {
+  const authHeader = String(req.headers.authorization || '');
+  const [type, token] = authHeader.split(' ');
+
+  if (type !== 'Bearer' || !token) {
+    res.status(401).json({ error: 'Token mancante' });
+    return;
+  }
+
+  try {
+    const payload = jwt.verify(token, JWT_SECRET);
+    const teacherRow = db
+      .prepare('SELECT * FROM teachers WHERE id = ?')
+      .get(payload.sub);
+
+    if (!teacherRow) {
+      res.status(401).json({ error: 'Token non valido' });
+      return;
+    }
+
+    req.teacher = teacherResponseFromRow(teacherRow);
+    next();
+  } catch {
+    res.status(401).json({ error: 'Token non valido o scaduto' });
+  }
+}
+
+
+function signTeacherToken(teacher) {
+  return jwt.sign(
+    {
+      email: teacher.email,
+      accessCode: teacher.accessCode
+    },
+    JWT_SECRET,
+    {
+      subject: teacher.id,
+      expiresIn: JWT_EXPIRES_IN
+    }
+  );
+}
+
+
+function teacherResponseFromRow(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    email: row.email,
+    accessCode: row.access_code,
+    createdAt: row.created_at
+  };
+}
+
+
+function experienceResponseFromRow(row) {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description || '',
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
+
+function loadTeacherExperienceOrNull(teacherId, experienceId) {
+  return db
+    .prepare(`
+      SELECT id, teacher_id, title, description, glb_path, json_path, created_at, updated_at
+      FROM experiences
+      WHERE id = ? AND teacher_id = ?
+    `)
+    .get(experienceId, teacherId) || null;
+}
+
+
+function loadExperienceOrNull(experienceId) {
+  return db
+    .prepare(`
+      SELECT id, teacher_id, title, description, glb_path, json_path, created_at, updated_at
+      FROM experiences
+      WHERE id = ?
+    `)
+    .get(experienceId) || null;
+}
+
+
+function validateTeacherCredentials({ name, email, password }) {
+  if (!name) return 'Nome docente obbligatorio';
+  if (name.length < 2) return 'Il nome docente deve contenere almeno 2 caratteri';
+  if (!email) return 'Email obbligatoria';
+  if (!isValidEmail(email)) return 'Email non valida';
+  if (!password) return 'Password obbligatoria';
+  if (password.length < 8) return 'La password deve contenere almeno 8 caratteri';
+  return '';
+}
+
+
+function normalizeText(value) {
+  return String(value || '').trim().replace(/\s+/g, ' ');
+}
+
+
+function normalizeEmail(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+
+function normalizeAccessCode(value) {
+  return String(value || '').trim().toUpperCase();
+}
+
+
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+
+function createUniqueTeacherAccessCode(name) {
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const code = createTeacherAccessCode(name);
+    const existing = db
+      .prepare('SELECT id FROM teachers WHERE access_code = ?')
+      .get(code);
+
+    if (!existing) return code;
+  }
+
+  throw new Error('Impossibile generare un codice docente univoco');
+}
+
+
+function createTeacherAccessCode(name) {
+  const prefix = normalizeAccessCodePrefix(name);
+  return `${prefix}-${randomAccessCodeSuffix(4)}`;
+}
+
+
+function normalizeAccessCodePrefix(value) {
+  const normalized = String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '');
+
+  return (normalized || 'DOC').slice(0, 8);
+}
+
+
+function randomAccessCodeSuffix(length) {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let value = '';
+
+  for (let i = 0; i < length; i++) {
+    value += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+
+  return value;
 }
 
 

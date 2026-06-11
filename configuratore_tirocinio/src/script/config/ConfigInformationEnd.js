@@ -6,6 +6,8 @@ export class ConfigInformationEnd {
     this.information = new Map();
     this.information.set("tipologia", "finalInformation");
     this.information.set("formato", "markdown");
+    this.editor = null;
+    this.feedback = null;
   }
 
   createInput() {
@@ -21,6 +23,7 @@ export class ConfigInformationEnd {
       id: "descrizioneFinale",
       placeholder: "Scrivi qui il testo finale..."
     });
+    this.editor = editor;
 
     const confirm = document.createElement("button");
     confirm.textContent = "Salva";
@@ -28,6 +31,7 @@ export class ConfigInformationEnd {
 
     const feedback = document.createElement("small");
     feedback.className = "text-success d-block mt-1";
+    this.feedback = feedback;
 
     confirm.addEventListener("click", () => {
       this.information.set("testo", editor.getValue());
@@ -40,5 +44,16 @@ export class ConfigInformationEnd {
 
   getInformation() {
     return this.information;
+  }
+
+  setInformation(information = {}) {
+    const testo = information.testo ?? "";
+    this.information.set("tipologia", information.tipologia || "finalInformation");
+    this.information.set("formato", information.formato || "markdown");
+    this.information.set("testo", testo);
+    this.editor?.setValue(testo);
+    if (this.feedback) {
+      this.feedback.textContent = testo ? "Testo finale caricato" : "";
+    }
   }
 }

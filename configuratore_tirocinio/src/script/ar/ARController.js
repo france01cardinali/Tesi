@@ -10,10 +10,7 @@ export class ARController {
         if(!navigator.xr) return null;
         
         const btn = ARButton.createButton(this.core.renderer, {
-            // Hit-test e obbligatoria per placement.
-            requiredFeatures: ["hit-test"],
-            // Feature opzionali: se mancanti, la sessione parte comunque con fallback parziale.
-            optionalFeatures: ["dom-overlay", "plane-detection", "depth-sensing", "anchors"],
+            optionalFeatures: ["dom-overlay", "depth-sensing"],
 
             depthSensing: {
                 // CPU depth: usata dal runtime occlusione custom lato JS/shader.

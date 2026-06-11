@@ -7,6 +7,8 @@ export class ConfigInfortationStart{
         this.information = new Map();
         this.information.set("tipologia", "information");
         this.information.set("formato", "markdown");
+        this.editor = null;
+        this.feedback = null;
 
 
     }
@@ -25,6 +27,7 @@ export class ConfigInfortationStart{
             id: "descrizione",
             placeholder: "Scrivi qui il testo iniziale..."
         });
+        this.editor = editor;
 
         // bottone finale
         const confirm = document.createElement("button");
@@ -33,6 +36,7 @@ export class ConfigInfortationStart{
 
         const feedback = document.createElement("small");
         feedback.className = "text-success d-block mt-1";
+        this.feedback = feedback;
 
         confirm.addEventListener("click", () => {
             this.information.set("testo", editor.getValue());
@@ -48,5 +52,16 @@ export class ConfigInfortationStart{
 
     getInformation(){
         return this.information;
+    }
+
+    setInformation(information = {}) {
+        const testo = information.testo ?? "";
+        this.information.set("tipologia", information.tipologia || "information");
+        this.information.set("formato", information.formato || "markdown");
+        this.information.set("testo", testo);
+        this.editor?.setValue(testo);
+        if (this.feedback) {
+            this.feedback.textContent = testo ? "Testo introduttivo caricato" : "";
+        }
     }
 }

@@ -26,8 +26,6 @@ export class ViewerCore {
 
         this.resetControls();
 
-        this.hasPlacedModel = false;
-
         this.modelRoot = new THREE.Group();
         this.scene.add(this.modelRoot);
 
@@ -168,7 +166,4 @@ export class ViewerCore {
         return true;
     }
 
-    setHasPlacedModel(placement) {
-        this.hasPlacedModel = placement?.hasPlacedModel;
-    }
 }

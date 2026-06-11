@@ -1,7 +1,6 @@
 // ARGestures.js
 import * as THREE from "three";
 
-
 export class ARGestures {
   constructor(core) {
     this.core = core;
@@ -10,38 +9,36 @@ export class ARGestures {
 
     this.target = null;
     this.targetRot = null;
-    this.onTap = null;
 
     this._activePointers = new Map();
     this.active = false;
-    this.mode = null; // "rotate" | "pan"
+    this.mode = null; // "place" | "rotate" | "pan"
 
-    // Rotate state
+    this.hasPlacedModel = false;
+    this.initialDistance = 1.15;
+    this.initialYOffset = -0.25;
+    this.previousTouchAction = "";
+    this.previousPointerEvents = "";
+
     this.lastX = 0;
     this.lastY = 0;
 
-    // Pan state
     this.panLastCenterX = 0;
     this.panLastCenterY = 0;
-    this.panPlaneY = 0;
-    this.panSpeed = 0.0015; // world meters per screen pixel
-    this.heightOffset = 0.05;
-    this.yAcceptError = 0.01;
-    this.initialPosition = new THREE.Vector3();
-    this.lastPanReticlePos = new THREE.Vector3();
+    this.panSpeed = 0.0015;
 
-    // Reused vectors
     this.right = new THREE.Vector3();
     this.forward = new THREE.Vector3();
     this.worldUp = new THREE.Vector3(0, 1, 0);
+    this.cameraPosition = new THREE.Vector3();
+    this.cameraDirection = new THREE.Vector3();
 
-    // Tap state
     this.tapStartX = 0;
     this.tapStartY = 0;
     this.tapStartTime = 0;
     this.tapMoved = false;
     this.tapMaxMovePx = 10;
-    this.tapMaxDurationMs = 280;
+    this.tapMaxDurationMs = 320;
 
     this.debugEl = document.querySelector("#gesture-debug");
 
@@ -51,24 +48,10 @@ export class ARGestures {
     this.onPointerCancel = this.onPointerCancel.bind(this);
   }
 
-
-
-
-
   setTarget(posObj3d, rotObj3d = posObj3d) {
-    // target: oggetto traslato durante pan; targetRot: oggetto ruotato su rotate.
     this.target = posObj3d;
     this.targetRot = rotObj3d;
   }
-
-  
-  
-
-
-
-
-
-
 
   setInputElement(nextEl) {
     if (!nextEl || nextEl === this.el) return;
@@ -78,79 +61,64 @@ export class ARGestures {
     if (wasEnabled) this.attachListeners();
   }
 
-
-
-
-
-
   enable() {
-    // Idempotente: evita doppia registrazione listeners.
     if (this.enabled) return;
     this.enabled = true;
+    this.hasPlacedModel = false;
+    if (this.target) this.target.visible = false;
     this.attachListeners();
+    this.debug("Tocca lo schermo per posizionare il modello");
   }
 
-
-
-
-
   dispose() {
-    // Cleanup completo stato gesture.
     if (!this.enabled) return;
     this.enabled = false;
     this.detachListeners();
     this._activePointers.clear();
     this.active = false;
     this.mode = null;
+    if (this.target) this.target.visible = true;
   }
 
-
-
-
-
   attachListeners() {
-    // Avoid browser scroll/zoom gestures on input surface.
+    this.previousTouchAction = this.el.style.touchAction;
+    this.previousPointerEvents = this.el.style.pointerEvents;
     this.el.style.touchAction = "none";
+    this.el.style.pointerEvents = "auto";
     this.el.addEventListener("pointerdown", this.onPointerDown);
     this.el.addEventListener("pointermove", this.onPointerMove);
     this.el.addEventListener("pointerup", this.onPointerUp);
     this.el.addEventListener("pointercancel", this.onPointerCancel);
-
   }
 
-
-
-
   detachListeners() {
+    this.el.style.touchAction = this.previousTouchAction;
+    this.el.style.pointerEvents = this.previousPointerEvents;
     this.el.removeEventListener("pointerdown", this.onPointerDown);
     this.el.removeEventListener("pointermove", this.onPointerMove);
     this.el.removeEventListener("pointerup", this.onPointerUp);
     this.el.removeEventListener("pointercancel", this.onPointerCancel);
-
   }
-
-
-
-
 
   debug(msg) {
-    if (!this.debugEl) return;
-    this.debugEl.textContent = msg;
+    if (!this.debugEl || !this.debugEl.isConnected) {
+      this.debugEl = document.querySelector("#gesture-debug");
+    }
+    if (this.debugEl) this.debugEl.textContent = msg;
   }
 
-
-
-
-
-
-  // ---- handlers ----
   onPointerDown(e) {
-    // Manteniamo mappa pointer attivi per distinguere 1 dito (rotate) da 2+ (pan).
     this.el.setPointerCapture?.(e.pointerId);
     this._activePointers.set(e.pointerId, e);
     this.active = true;
 
     const pointers = this.getPointers();
+
+    if (!this.hasPlacedModel) {
+      if (pointers.length === 1) this.startPlacementTap(pointers[0]);
+      return;
+    }
+
     if (pointers.length === 1) {
       this.startRotate(pointers[0]);
       return;
@@ -161,12 +129,7 @@ export class ARGestures {
     }
   }
 
-
-
-
-
   onPointerMove(e) {
-    // Se non c'e un gesto attivo, ignora.
     if (!this.active) return;
     if (this._activePointers.has(e.pointerId)) {
       this._activePointers.set(e.pointerId, e);
@@ -174,6 +137,14 @@ export class ARGestures {
     if (!this.target) return;
 
     const pointers = this.getPointers();
+
+    if (!this.hasPlacedModel && this.mode === "place" && pointers.length === 1) {
+      this.updatePlacementTap(pointers[0]);
+      return;
+    }
+
+    if (!this.hasPlacedModel) return;
+
     if (this.mode === "rotate" && pointers.length === 1) {
       this.handleRotateMove(pointers[0]);
       return;
@@ -184,95 +155,74 @@ export class ARGestures {
     }
   }
 
-
-
-
   onPointerUp(e) {
     this.handlePointerEnd(e, true);
   }
-
-
-
 
   onPointerCancel(e) {
     this.handlePointerEnd(e, false);
   }
 
-
-
-
-  // ---- state transitions ----
-  startRotate(pointer) {
-    // Rotate mode: memorizza stato tap/move iniziale.
-    this.mode = "rotate";
-    this.lastX = pointer.clientX;
-    this.lastY = pointer.clientY;
+  startPlacementTap(pointer) {
+    this.mode = "place";
     this.tapStartX = pointer.clientX;
     this.tapStartY = pointer.clientY;
     this.tapStartTime = performance.now();
     this.tapMoved = false;
-    this.reticleCtrl.hide();
   }
 
-
-
-
-  startPan(pointers) {
-    // Pan mode: fissa quota di pan e posizione iniziale.
-    this.mode = "pan";
-    const c = this.getCenter(pointers);
-    this.panLastCenterX = c.x;
-    this.panLastCenterY = c.y;
-    this.tapMoved = true;
-
-    if (!this.target) return;
-    this.panPlaneY = this.target.position.y;
-    this.initialPosition.copy(this.target.position);
-
-    // Keep a valid fallback commit position even if no pointermove is fired.
-    this.lastPanReticlePos.copy(this.target.position);
-    this.lastPanReticlePos.y = this.panPlaneY;
-  }
-
-
-
-
-  //andler rotazione
-  handleRotateMove(pointer) {
-    // Guard: gesture rotate valida solo durante sessione XR.
-    if (!this.core.renderer.xr.isPresenting) return;
-    this.suspendAnchorIfNeeded();
-
-    const dx = pointer.clientX - this.lastX;
-    this.lastX = pointer.clientX;
-    this.lastY = pointer.clientY;
-
+  updatePlacementTap(pointer) {
     const moved = Math.hypot(
       pointer.clientX - this.tapStartX,
       pointer.clientY - this.tapStartY
     );
     if (moved > this.tapMaxMovePx) this.tapMoved = true;
+  }
+
+  placeModelInFrontOfCamera() {
+    if (!this.target || !this.core.renderer.xr.isPresenting) return false;
+
+    const xrCamera = this.core.renderer.xr.getCamera(this.core.camera);
+    xrCamera.getWorldPosition(this.cameraPosition);
+    xrCamera.getWorldDirection(this.cameraDirection);
+
+    this.target.position.copy(this.cameraPosition);
+    this.target.position.addScaledVector(this.cameraDirection, this.initialDistance);
+    this.target.position.y = this.cameraPosition.y + this.initialYOffset;
+    this.target.visible = true;
+    this.target.updateMatrixWorld(true);
+
+    this.hasPlacedModel = true;
+    this.core.hasPlacedModel = true;
+    this.debug("Modello posizionato");
+    return true;
+  }
+
+  startRotate(pointer) {
+    this.mode = "rotate";
+    this.lastX = pointer.clientX;
+    this.lastY = pointer.clientY;
+  }
+
+  startPan(pointers) {
+    this.mode = "pan";
+    const c = this.getCenter(pointers);
+    this.panLastCenterX = c.x;
+    this.panLastCenterY = c.y;
+  }
+
+  handleRotateMove(pointer) {
+    if (!this.core.renderer.xr.isPresenting || !this.targetRot) return;
+
+    const dx = pointer.clientX - this.lastX;
+    this.lastX = pointer.clientX;
+    this.lastY = pointer.clientY;
 
     this.targetRot.rotation.y += dx * 0.01;
   }
 
-
-
-
-
-  //handler movimento con pan
   handlePanMove(pointers) {
-    // Guard: gesture pan valida solo in XR.
-    if (!this.core.renderer.xr.isPresenting) return;
-    this.suspendAnchorIfNeeded();
-
-    const reticleRefObj = this.targetRot || this.target;
-    this.reticleCtrl?.syncWithModel(reticleRefObj);
-    this.reticleCtrl?.setPanPoseFromObject(reticleRefObj, this.panPlaneY);
-
-    // Keep model at chosen pan height policy.
-    // Mantieni il modello alla quota pan scelta (+ offset se desiderato).
-    this.target.position.y = this.panPlaneY + this.heightOffset;
+    if (!this.core.renderer.xr.isPresenting || !this.target) return;
 
     const c = this.getCenter(pointers);
     const dx = c.x - this.panLastCenterX;
@@ -289,39 +239,30 @@ export class ARGestures {
 
     this.right.crossVectors(this.forward, this.worldUp).normalize();
 
-    // Delta schermo -> movimento metrico sul piano camera.
-    const mx = dx * this.panSpeed;
-    const mz = -dy * this.panSpeed;
-    this.target.position.addScaledVector(this.right, mx);
-    this.target.position.addScaledVector(this.forward, mz);
-
-    this.reticleCtrl?.setPanPoseFromObject(reticleRefObj, this.panPlaneY);
-    if (!this.reticleCtrl?.isLineInvalid) {
-      this.lastPanReticlePos.copy(this.target.position);
-      this.lastPanReticlePos.y = this.panPlaneY;
-    }
-
+    this.target.position.addScaledVector(this.right, dx * this.panSpeed);
+    this.target.position.addScaledVector(this.forward, -dy * this.panSpeed);
   }
 
+  handlePointerEnd(e, allowPlacement) {
+    const prevCount = this._activePointers.size;
+    this._activePointers.delete(e.pointerId);
+    const pointers = this.getPointers();
+    const nextCount = pointers.length;
 
+    if (!this.hasPlacedModel && this.mode === "place") {
+      const isTap = allowPlacement
+        && !this.tapMoved
+        && performance.now() - this.tapStartTime <= this.tapMaxDurationMs;
 
+      if (isTap) this.placeModelInFrontOfCamera();
 
+      this._activePointers.clear();
+      this.active = false;
+      this.mode = null;
+      return;
+    }
 
-
-  //handler 
-  handlePointerEnd(e) {
-    const prevCount = this._activePointers.size; //prendo il numero pointer prima di togliere quello che non è più attivo
-    this._activePointers.delete(e.pointerId); //rimuove il pointer non più attivo
-
-    const pointers = this.getPointers(); //prende i pointer attivi
-    const nextCount = pointers.length; // prende il numero di pointer attivi
-
-    // Fine pan: quando scendi sotto 2 dita, conferma posizione e riporta il modello alla quota base.
-    // Sotto 2 dita conferma posizione e chiude reticle.
     if (prevCount >= 2 && nextCount < 2) {
-      this.setPosition();
-      this.reticleCtrl.hide();
-
       if (nextCount > 0) {
         this.mode = "rotate";
         this.lastX = pointers[0].clientX;
@@ -335,7 +276,6 @@ export class ARGestures {
       return;
     }
 
-    //se non ci sono pointer attivi
     if (nextCount === 0) {
       this._activePointers.clear();
       this.active = false;
@@ -343,16 +283,12 @@ export class ARGestures {
       return;
     }
 
-    //se c'erano più di due pointer attivi e rimani comunque con due o più, per rimanere in pan
-    this.handlePanMove(pointers);
+    if (nextCount >= 2) this.handlePanMove(pointers);
   }
-  // ---- utils ----
+
   getPointers() {
     return Array.from(this._activePointers.values());
   }
-
-
-
 
   getCenter(pointers) {
     let x = 0;
@@ -362,22 +298,5 @@ export class ARGestures {
       y += p.clientY;
     }
     return { x: x / pointers.length, y: y / pointers.length };
-  }
-
-
-
-
-  
-
-  setPosition() {
-    // Commit finale posizione: usa ultimo punto valido del pan.
-    if (!this.target) return;
-    if (!this.reticleCtrl?.isLineInvalid) {
-      this.lastPanReticlePos.copy(this.target.position);
-      this.lastPanReticlePos.y = this.panPlaneY;
-    }
-    this.target.position.copy(this.lastPanReticlePos);
-    this.target.position.y = this.panPlaneY;
- 
   }
 }

@@ -28,7 +28,7 @@ export async function load(viewer) {
 }
 
 
-export async function uploadConfigurazione(glb, viewer) {
+export async function uploadConfigurazione(glb, viewer, configJson = null) {
 
     const url = await loadModel(glb);
 
@@ -41,8 +41,7 @@ export async function uploadConfigurazione(glb, viewer) {
     //viewer.mode="configuratore";
     const createConf = new createConfigurationSet(viewer);
 
-    createConf.start();
+    createConf.start(configJson);
 
     
 }
-

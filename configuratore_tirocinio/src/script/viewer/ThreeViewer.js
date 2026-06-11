@@ -23,8 +23,6 @@ export class ThreeViewer {
         this.model = new ModelController(this.core, this.events);
         this.env = new EnvironmentController(this.core);
         this.ar = new ARController(this.core, this.events);
-        // Parametri placement iniziali (guardie di validazione hit/reticle).
-       
         this.gestures = new ARGestures(this.core);
         
         
