@@ -34,7 +34,7 @@ export class ViewerCore {
         this.renderer.xr.addEventListener("sessionstart", () => {
             // In AR disabilita orbit controls desktop.
             if (this.controls) this.controls.enabled = false;
-            this.occlusion.onSessionStart();
+            this.occlusion?.onSessionStart?.();
         });
 
         this.renderer.xr.addEventListener("sessionend", () => {

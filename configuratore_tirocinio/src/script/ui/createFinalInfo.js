@@ -30,6 +30,7 @@ function createFinalPanel(testo) {
   close.textContent = "Chiudi";
   close.addEventListener("click", () => {
     overlay.style.display = "none";
+    window.dispatchEvent(new CustomEvent("experience:close"));
   });
 
   panel.append(title, content, close);

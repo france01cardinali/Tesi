@@ -1,5 +1,12 @@
-.student-page {
-  overflow: auto;
+#setup-container.student-page {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0 !important;
+  max-height: 100dvh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
 }
 
 .student-panel {

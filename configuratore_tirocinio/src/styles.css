@@ -265,6 +265,10 @@ body.ar-mode .ui-fab {
   inset: 0;
   z-index: 1000000;
   pointer-events: none;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 #ar-overlay .ar-button,
@@ -289,6 +293,10 @@ body.ar-mode .ui-fab {
 #ar-overlay #control.open{ bottom: 0; }
 
 body.ar-mode .initial-info-section {
+  display: none !important;
+}
+
+body.experience-ended .initial-info-section {
   display: none !important;
 }
 

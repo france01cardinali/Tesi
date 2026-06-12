@@ -47,6 +47,9 @@
   max-height: min(760px, calc(100dvh - 32px));
   padding: 26px;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
   background: #ffffff;
   color: #18212f;
   border: 1px solid rgba(222, 226, 230, 0.92);

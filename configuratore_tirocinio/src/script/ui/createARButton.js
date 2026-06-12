@@ -37,8 +37,7 @@ export function createARButton(viewer) {
 
   
   const debug = document.querySelector('#gesture-debug');
-  //panel.appendChild(debug);
-  overlay.appendChild(debug);
+  if (debug) overlay.appendChild(debug);
 
 
   // 3) crea ARButton con domOverlay.root = overlay
@@ -62,6 +61,7 @@ export function createARButton(viewer) {
 
   // 4) session start/end
   viewer.xr.addEventListener("sessionstart", () => {
+    document.body.classList.remove("experience-ended");
     overlay.style.display = "";             //  accendi overlay
     // Keep XR surface tappable: only explicit overlay children remain interactive.
     overlay.style.pointerEvents = "auto";
@@ -73,6 +73,7 @@ export function createARButton(viewer) {
   });
 
   viewer.xr.addEventListener("sessionend", () => {
+    document.body.classList.add("experience-ended");
     // rimetti UI fuori overlay
     moveUIBackToLayout();
 

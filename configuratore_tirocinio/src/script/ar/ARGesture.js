@@ -9,13 +9,17 @@ export class ARGestures {
 
     this.target = null;
     this.targetRot = null;
+    this.initialTargetPosition = new THREE.Vector3();
+    this.initialTargetScale = new THREE.Vector3(1, 1, 1);
+    this.initialTargetQuaternion = new THREE.Quaternion();
+    this.initialRotQuaternion = new THREE.Quaternion();
 
     this._activePointers = new Map();
     this.active = false;
     this.mode = null; // "place" | "rotate" | "pan"
 
     this.hasPlacedModel = false;
-    this.initialDistance = 1.15;
+    this.initialDistance = 1.8;
     this.initialYOffset = -0.25;
     this.previousTouchAction = "";
     this.previousPointerEvents = "";
@@ -26,9 +30,15 @@ export class ARGestures {
     this.panLastCenterX = 0;
     this.panLastCenterY = 0;
     this.panSpeed = 0.0015;
+    this.verticalPanSpeed = 0.0015;
+    this.rotateSpeed = 0.006;
+    this.minScale = 0.05;
+    this.maxScale = 20;
+    this.panLastDistance = 0;
 
     this.right = new THREE.Vector3();
     this.forward = new THREE.Vector3();
+    this.cameraRight = new THREE.Vector3();
     this.worldUp = new THREE.Vector3(0, 1, 0);
     this.cameraPosition = new THREE.Vector3();
     this.cameraDirection = new THREE.Vector3();
@@ -51,6 +61,8 @@ export class ARGestures {
   setTarget(posObj3d, rotObj3d = posObj3d) {
     this.target = posObj3d;
     this.targetRot = rotObj3d;
+    if (this.targetRot?.rotation) this.targetRot.rotation.order = "YXZ";
+    this.captureInitialTransform();
   }
 
   setInputElement(nextEl) {
@@ -77,7 +89,7 @@ export class ARGestures {
     this._activePointers.clear();
     this.active = false;
     this.mode = null;
-    if (this.target) this.target.visible = true;
+    this.resetTargetTransform();
   }
 
   attachListeners() {
@@ -198,6 +210,36 @@ export class ARGestures {
     return true;
   }
 
+  captureInitialTransform() {
+    if (this.target) {
+      this.initialTargetPosition.copy(this.target.position);
+      this.initialTargetScale.copy(this.target.scale);
+      this.initialTargetQuaternion.copy(this.target.quaternion);
+    }
+
+    if (this.targetRot) {
+      this.initialRotQuaternion.copy(this.targetRot.quaternion);
+    }
+  }
+
+  resetTargetTransform() {
+    if (this.target) {
+      this.target.position.copy(this.initialTargetPosition);
+      this.target.scale.copy(this.initialTargetScale);
+      this.target.quaternion.copy(this.initialTargetQuaternion);
+      this.target.visible = true;
+      this.target.updateMatrixWorld(true);
+    }
+
+    if (this.targetRot && this.targetRot !== this.target) {
+      this.targetRot.quaternion.copy(this.initialRotQuaternion);
+      this.targetRot.updateMatrixWorld(true);
+    }
+
+    this.hasPlacedModel = false;
+    this.core.hasPlacedModel = false;
+  }
+
   startRotate(pointer) {
     this.mode = "rotate";
     this.lastX = pointer.clientX;
@@ -209,16 +251,22 @@ export class ARGestures {
     const c = this.getCenter(pointers);
     this.panLastCenterX = c.x;
     this.panLastCenterY = c.y;
+    this.panLastDistance = this.getDistance(pointers);
   }
 
   handleRotateMove(pointer) {
     if (!this.core.renderer.xr.isPresenting || !this.targetRot) return;
 
     const dx = pointer.clientX - this.lastX;
+    const dy = pointer.clientY - this.lastY;
     this.lastX = pointer.clientX;
     this.lastY = pointer.clientY;
 
-    this.targetRot.rotation.y += dx * 0.01;
+    const xrCam = this.core.renderer.xr.getCamera(this.core.camera);
+    this.cameraRight.setFromMatrixColumn(xrCam.matrixWorld, 0).normalize();
+
+    this.targetRot.rotateOnWorldAxis(this.worldUp, dx * this.rotateSpeed);
+    this.targetRot.rotateOnWorldAxis(this.cameraRight, dy * this.rotateSpeed);
   }
 
   handlePanMove(pointers) {
@@ -227,8 +275,12 @@ export class ARGestures {
     const c = this.getCenter(pointers);
     const dx = c.x - this.panLastCenterX;
     const dy = c.y - this.panLastCenterY;
+    const distance = this.getDistance(pointers);
+    const distanceDelta = distance - this.panLastDistance;
+
     this.panLastCenterX = c.x;
     this.panLastCenterY = c.y;
+    this.panLastDistance = distance;
 
     const xrCam = this.core.renderer.xr.getCamera(this.core.camera);
     xrCam.getWorldDirection(this.forward);
@@ -240,7 +292,14 @@ export class ARGestures {
     this.right.crossVectors(this.forward, this.worldUp).normalize();
 
     this.target.position.addScaledVector(this.right, dx * this.panSpeed);
+
+    if (pointers.length >= 3) {
+      this.target.position.addScaledVector(this.worldUp, -dy * this.verticalPanSpeed);
+      return;
+    }
+
     this.target.position.addScaledVector(this.forward, -dy * this.panSpeed);
+    this.applyPinchScale(distance, distanceDelta);
   }
 
   handlePointerEnd(e, allowPlacement) {
@@ -259,6 +318,11 @@ export class ARGestures {
       this._activePointers.clear();
       this.active = false;
       this.mode = null;
+      return;
+    }
+
+    if (prevCount >= 2 && nextCount >= 2 && prevCount !== nextCount) {
+      this.startPan(pointers);
       return;
     }
 
@@ -298,5 +362,30 @@ export class ARGestures {
       y += p.clientY;
     }
     return { x: x / pointers.length, y: y / pointers.length };
+  }
+
+  getDistance(pointers) {
+    if (pointers.length < 2) return 0;
+    return Math.hypot(
+      pointers[1].clientX - pointers[0].clientX,
+      pointers[1].clientY - pointers[0].clientY
+    );
+  }
+
+  applyPinchScale(distance, distanceDelta) {
+    if (!Number.isFinite(distance) || !Number.isFinite(distanceDelta)) return;
+    const previousDistance = distance - distanceDelta;
+    if (previousDistance <= 0) return;
+
+    const factor = distance / previousDistance;
+    if (!Number.isFinite(factor) || factor <= 0) return;
+
+    const nextX = this.clamp(this.target.scale.x * factor, this.minScale, this.maxScale);
+    const appliedFactor = nextX / this.target.scale.x;
+    this.target.scale.multiplyScalar(appliedFactor);
+  }
+
+  clamp(value, min, max) {
+    return Math.min(Math.max(value, min), max);
   }
 }

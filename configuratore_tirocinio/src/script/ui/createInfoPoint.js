@@ -16,6 +16,7 @@ class InfoPointRuntime {
     this.camera = this.core.camera;
     this.renderer = this.core.renderer;
     this.modelRoot = this.core.modelRoot;
+    this.markerRoot = viewer.model?.pivot || this.modelRoot;
     this.root = document.querySelector("#control .control-inner") || document.querySelector("#control");
 
 
@@ -27,6 +28,7 @@ class InfoPointRuntime {
     this.pointer = new THREE.Vector2();
     this.tmpWorldPosition = new THREE.Vector3();
     this.tmpScreenPosition = new THREE.Vector3();
+    this.tmpScale = new THREE.Vector3();
 
     this.panel = this.createPanel();
 
@@ -37,6 +39,7 @@ class InfoPointRuntime {
     this.onAROverlayPointerDown = this.onAROverlayPointerDown.bind(this);
     this.onAROverlayPointerUp = this.onAROverlayPointerUp.bind(this);
     this.arTapStart = null;
+    this.suppressSelectionUntil = 0;
 
     viewer.xr.addEventListener("sessionstart", () => {
       const session = viewer.xr.getSession();
@@ -83,7 +86,7 @@ class InfoPointRuntime {
       if (box.isEmpty()) return;
 
       const worldCenter = box.getCenter(new THREE.Vector3());
-      const localCenter = this.modelRoot.worldToLocal(worldCenter.clone());
+      const localCenter = this.markerRoot.worldToLocal(worldCenter.clone());
 
       const size = box.getSize(new THREE.Vector3());
       const radius = Math.max(size.length() * 0.03, 0.025);
@@ -108,9 +111,10 @@ class InfoPointRuntime {
       marker.position.y += Math.max(size.y * 0.65, radius * 2.5);
 
       marker.userData.infoPoint = info;
+      marker.userData.pickRadius = radius;
 
-      // Figlio di modelRoot: segue scala, rotazione e gesture AR del modello.
-      this.modelRoot.add(marker);
+      // Figlio dello stesso pivot ruotato dai gesti AR: resta agganciato al modello.
+      this.markerRoot.add(marker);
       this.markers.push(marker);
     });
   }
@@ -127,6 +131,8 @@ class InfoPointRuntime {
   }
 
   onPointerDown(event) {
+    if (this.isSelectionSuppressed()) return;
+
     const rect = this.renderer.domElement.getBoundingClientRect();
 
     this.pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -150,6 +156,7 @@ class InfoPointRuntime {
 
   onXRSelect() {
     if (!this.viewer.xr.isPresenting) return;
+    if (this.isSelectionSuppressed()) return;
 
     const rect = this.renderer.domElement.getBoundingClientRect();
     this.selectMarkerNearClientPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
@@ -157,7 +164,12 @@ class InfoPointRuntime {
 
   onAROverlayPointerDown(event) {
     if (!this.viewer.xr.isPresenting) return;
-    if (this.isOverlayUIEvent(event)) return;
+    if (this.isOverlayUIEvent(event)) {
+      this.suppressSelection(450);
+      this.arTapStart = null;
+      return;
+    }
+    if (this.isSelectionSuppressed()) return;
 
     this.arTapStart = {
       x: event.clientX,
@@ -169,6 +181,11 @@ class InfoPointRuntime {
   onAROverlayPointerUp(event) {
     if (!this.viewer.xr.isPresenting || !this.arTapStart) return;
     if (this.isOverlayUIEvent(event)) {
+      this.suppressSelection(450);
+      this.arTapStart = null;
+      return;
+    }
+    if (this.isSelectionSuppressed()) {
       this.arTapStart = null;
       return;
     }
@@ -189,6 +206,8 @@ class InfoPointRuntime {
   }
 
   raycastFromClientPoint(clientX, clientY) {
+    if (this.isSelectionSuppressed()) return;
+
     const rect = this.renderer.domElement.getBoundingClientRect();
 
     this.pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
@@ -211,6 +230,8 @@ class InfoPointRuntime {
   }
 
   selectMarkerNearClientPoint(clientX, clientY) {
+    if (this.isSelectionSuppressed()) return;
+
     const marker = this.pickMarkerByScreenDistance(clientX, clientY);
     if (!marker) return;
 
@@ -223,7 +244,7 @@ class InfoPointRuntime {
       ? this.viewer.xr.getCamera(this.camera)
       : this.camera;
     const projectionCamera = getProjectionCamera(cameraToUse);
-    const maxDistancePx = this.viewer.xr.isPresenting ? 90 : 44;
+    const maxDistancePx = this.viewer.xr.isPresenting ? 34 : 28;
 
     let best = null;
     let bestScore = Infinity;
@@ -238,8 +259,10 @@ class InfoPointRuntime {
       const x = rect.left + (this.tmpScreenPosition.x * 0.5 + 0.5) * rect.width;
       const y = rect.top + (-this.tmpScreenPosition.y * 0.5 + 0.5) * rect.height;
       const distance = Math.hypot(clientX - x, clientY - y);
+      const projectedRadius = this.getProjectedMarkerRadiusPx(marker, projectionCamera, rect);
+      const hitRadius = Math.max(maxDistancePx, projectedRadius * 1.25);
 
-      if (distance > maxDistancePx) continue;
+      if (distance > hitRadius) continue;
 
       const score = distance + this.tmpScreenPosition.z * 8;
       if (score < bestScore) {
@@ -249,6 +272,21 @@ class InfoPointRuntime {
     }
 
     return best;
+  }
+
+  getProjectedMarkerRadiusPx(marker, camera, rect) {
+    marker.getWorldScale(this.tmpScale);
+    const worldRadius = (marker.userData.pickRadius || 0.025) * Math.max(
+      this.tmpScale.x,
+      this.tmpScale.y,
+      this.tmpScale.z
+    );
+
+    const distance = camera.getWorldPosition(new THREE.Vector3()).distanceTo(this.tmpWorldPosition);
+    if (!Number.isFinite(distance) || distance <= 0) return 0;
+
+    const verticalFov = THREE.MathUtils.degToRad(camera.fov || 60);
+    return (worldRadius / distance) * (rect.height / (2 * Math.tan(verticalFov / 2)));
   }
 
   isOverlayUIEvent(event) {
@@ -306,7 +344,24 @@ class InfoPointRuntime {
       cursor: "pointer",
       flex: "0 0 auto"
     });
-    closeButton.addEventListener("click", () => this.hidePanel());
+    closeButton.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      this.arTapStart = null;
+      this.suppressSelection(450);
+    });
+    closeButton.addEventListener("pointerup", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      this.arTapStart = null;
+      this.suppressSelection(450);
+    });
+    closeButton.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      this.suppressSelection(450);
+      this.hidePanel();
+    });
 
     header.append(title, closeButton);
 
@@ -343,6 +398,15 @@ class InfoPointRuntime {
 
   hidePanel() {
     this.panel.style.display = "none";
+    document.querySelector("#control")?.classList.remove("open");
+  }
+
+  suppressSelection(durationMs = 350) {
+    this.suppressSelectionUntil = performance.now() + durationMs;
+  }
+
+  isSelectionSuppressed() {
+    return performance.now() < this.suppressSelectionUntil;
   }
 
   dispose() {
@@ -353,7 +417,7 @@ class InfoPointRuntime {
     overlay?.removeEventListener("pointerup", this.onAROverlayPointerUp);
 
     this.markers.forEach((marker) => {
-      this.modelRoot.remove(marker);
+      marker.parent?.remove(marker);
       marker.geometry.dispose();
       marker.material.dispose();
     });

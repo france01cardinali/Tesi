@@ -58,9 +58,23 @@ export class VieweComponent implements AfterViewInit, OnDestroy {
   private glb?: any;
   private json?: any;
   private publicExperienceId = '';
+  private returnTeacherCode = '';
+
+  private readonly onExperienceClose = () => {
+    if (this.publicExperienceId) {
+      this.router.navigate(['/visualizzatore'], {
+        queryParams: this.returnTeacherCode ? { teacherCode: this.returnTeacherCode } : {}
+      });
+      return;
+    }
+
+    this.router.navigate(['/configuratore']);
+  };
 
   async ngAfterViewInit(): Promise<void> {
     this.publicExperienceId = this.route.snapshot.queryParamMap.get('experienceId') || '';
+    this.returnTeacherCode = this.route.snapshot.queryParamMap.get('teacherCode') || '';
+    window.addEventListener('experience:close', this.onExperienceClose);
     this.id = this.viewerSession.getId();
     console.log("this.id", this.id);
     
@@ -130,6 +144,8 @@ export class VieweComponent implements AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    window.removeEventListener('experience:close', this.onExperienceClose);
+    document.body.classList.remove('ar-mode', 'experience-ended');
     this.viewer?.dispose();
   }
 
