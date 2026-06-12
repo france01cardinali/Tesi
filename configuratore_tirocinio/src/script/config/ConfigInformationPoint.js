@@ -19,11 +19,14 @@ export class ConfigInformationPoint{
         this.infoPointNameTemp = "";
         this.infoPointTemp = new Set();
         this.infoPointDescriptionTemp = "";
+        this.editingIndex = -1;
         this.ready = false;
 
         this.section = document.createElement("section");
         this.descriptionInfoPointEl = null;
         this.infoPointListEl = null;
+        this.nameInputEl = null;
+        this.confirmButtonEl = null;
 
 
         this.rep = new Map();
@@ -61,10 +64,7 @@ export class ConfigInformationPoint{
         if(!intersects.length) return;
         const hit = intersects[0];
 
-        if(
-            this.ready == true &&
-            !this.infoPoints.some((infoPoint) => infoPoint.parte.includes(hit.object.name))
-        ) {
+        if(this.ready == true && this.canSelectMesh(hit.object.name)) {
             if(!this.infoPointTemp.has(hit.object.name)){
                 this.createMeshElementView(hit.object.name);
 
@@ -108,6 +108,7 @@ export class ConfigInformationPoint{
         textBox.type = "text";
         textBox.placeholder = "Nome info point";
         textBox.className = "form-control";
+        this.nameInputEl = textBox;
 
         const startBtn = document.createElement("button");
         startBtn.textContent = "Seleziona";
@@ -134,6 +135,7 @@ export class ConfigInformationPoint{
         const confirm = document.createElement("button");
         confirm.textContent = "Crea information point";
         confirm.className = "btn btn-success w-100";
+        this.confirmButtonEl = confirm;
 
         const listrep = document.createElement("div");
         listrep.id = "reportList";
@@ -151,8 +153,11 @@ export class ConfigInformationPoint{
         // EVENTI
 
         startBtn.addEventListener("click", () => {
-            this.infoPointNameTemp = textBox.value.trim();
+            const nextName = textBox.value.trim();
+            this.cancelEdit();
+            this.infoPointNameTemp = nextName;
             if (!this.infoPointNameTemp) return;
+            textBox.value = this.infoPointNameTemp;
 
             this.ready = true;
             this.infoPointTemp.clear();
@@ -162,26 +167,25 @@ export class ConfigInformationPoint{
         });
 
         confirm.addEventListener("click", () => {
+            this.infoPointNameTemp = textBox.value.trim();
 
             if (!this.infoPointNameTemp) return;
             if (this.infoPointTemp.size === 0) return;
 
-            this.infoPoints.push({
+            const infoPoint = {
                 name: this.infoPointNameTemp,
                 parte: Array.from(this.infoPointTemp),
                 descrizione: this.infoPointDescriptionTemp
-            });
+            };
+
+            if(this.editingIndex >= 0){
+                this.infoPoints[this.editingIndex] = infoPoint;
+            }else{
+                this.infoPoints.push(infoPoint);
+            }
 
             this.report();
-
-
-            this.infoPointTemp.clear();
-            this.infoPointDescriptionTemp = "";
-            this.infoPointNameTemp = "";
-            list.replaceChildren();
-            textBox.value = "";
-            this.ready = false;
-            this.hideDescriptionInfoPoint();
+            this.resetDraft();
             this.replace();
         });
 
@@ -217,6 +221,72 @@ export class ConfigInformationPoint{
 
     getInfoPoints(){
         return this.infoPoints;
+    }
+
+    canSelectMesh(meshName){
+        return !this.infoPoints.some((infoPoint, index) => (
+            index !== this.editingIndex && infoPoint.parte.includes(meshName)
+        ));
+    }
+
+    resetDraft(){
+        this.infoPointTemp.clear();
+        this.infoPointDescriptionTemp = "";
+        this.infoPointNameTemp = "";
+        this.editingIndex = -1;
+        this.ready = false;
+        this.infoPointListEl?.replaceChildren();
+        if(this.nameInputEl) this.nameInputEl.value = "";
+        if(this.confirmButtonEl) this.confirmButtonEl.textContent = "Crea information point";
+        this.hideDescriptionInfoPoint();
+    }
+
+    cancelEdit(){
+        if(this.editingIndex < 0 && !this.infoPointTemp.size) return;
+        this.replace();
+        this.resetDraft();
+    }
+
+    editInfoPoint(index){
+        const infoPoint = this.infoPoints[index];
+        if(!infoPoint) return;
+
+        this.replace();
+        this.editingIndex = index;
+        this.ready = true;
+        this.infoPointNameTemp = infoPoint.name;
+        this.infoPointDescriptionTemp = infoPoint.descrizione || "";
+        this.infoPointTemp = new Set(infoPoint.parte || []);
+
+        if(this.nameInputEl) this.nameInputEl.value = this.infoPointNameTemp;
+        if(this.confirmButtonEl) this.confirmButtonEl.textContent = "Aggiorna information point";
+
+        this.infoPointListEl?.replaceChildren();
+        for(const name of this.infoPointTemp){
+            this.createMeshElementView(name);
+            this.highlightMeshByName(name);
+        }
+
+        this.showDescriptionInfoPoint(this.infoPointDescriptionTemp);
+    }
+
+    deleteInfoPoint(index){
+        const infoPoint = this.infoPoints[index];
+        if(!infoPoint) return;
+
+        const confirmed = window.confirm(`Eliminare l'information point "${infoPoint.name}"?`);
+        if(!confirmed) return;
+
+        this.infoPoints.splice(index, 1);
+        this.replace();
+
+        if(this.editingIndex === index){
+            this.resetDraft();
+        }else if(this.editingIndex > index){
+            this.editingIndex -= 1;
+        }
+
+        this.report();
     }
 
     setInfoPoints(infoPoints = []){
@@ -277,18 +347,46 @@ export class ConfigInformationPoint{
         if(!reportList) return;
         reportList.replaceChildren();
 
-        for(const infoPoint of this.infoPoints){
-            
+        if(!this.infoPoints.length){
             const el = document.createElement("small");
             el.className = "text-muted d-block mt-1";
+            el.textContent ="Nessun information point salvato";
+            reportList.appendChild(el);
+            return;
+        }
+
+        this.infoPoints.forEach((infoPoint, index) => {
+            
+            const row = document.createElement("div");
+            row.className = "border rounded p-2 mt-2 bg-white";
+
+            const el = document.createElement("small");
+            el.className = "text-muted d-block mb-2";
             const names = infoPoint.parte;
             const preview = names.slice(0, 3).join(", ");
             const remaining = names.length - Math.min(names.length, 3);
             const suffix = remaining > 0 ? ` +${remaining}` : "";
             el.textContent = `Salvato "${infoPoint.name}" (${names.length} mesh): ${preview}${suffix}`;
 
-            reportList.appendChild(el);
-        }
+            const actions = document.createElement("div");
+            actions.className = "d-flex gap-2";
+
+            const editBtn = document.createElement("button");
+            editBtn.type = "button";
+            editBtn.className = "btn btn-outline-primary btn-sm";
+            editBtn.textContent = "Modifica";
+            editBtn.addEventListener("click", () => this.editInfoPoint(index));
+
+            const deleteBtn = document.createElement("button");
+            deleteBtn.type = "button";
+            deleteBtn.className = "btn btn-outline-danger btn-sm";
+            deleteBtn.textContent = "Elimina";
+            deleteBtn.addEventListener("click", () => this.deleteInfoPoint(index));
+
+            actions.append(editBtn, deleteBtn);
+            row.append(el, actions);
+            reportList.appendChild(row);
+        });
     }
 
     replaceMaterial(mesh){
@@ -303,7 +401,15 @@ export class ConfigInformationPoint{
         })
     }
 
-    createDescrtionInfoPoint(){
+    highlightMeshByName(name){
+        this.core.modelRoot.traverse((obj) => {
+            if(!obj.isMesh || obj.name !== name) return;
+            if(!this.rep.has(name)) this.rep.set(name, obj.material);
+            this.applySelectionMaterial(obj);
+        });
+    }
+
+    createDescrtionInfoPoint(initialValue = ""){
         const wrapper = document.createElement("div");
         wrapper.className = "mt-2";
 
@@ -314,6 +420,7 @@ export class ConfigInformationPoint{
             id: "descrizioneInfoPoint",
             labelText: "Descrizione",
             placeholder: "Scrivi qui la descrizione...",
+            initialValue,
             onInput: (value) => {
                 this.infoPointDescriptionTemp = value;
                 feedback.textContent = "";
@@ -334,9 +441,9 @@ export class ConfigInformationPoint{
         return wrapper;
     }
 
-    showDescriptionInfoPoint(){
+    showDescriptionInfoPoint(initialValue = ""){
         this.hideDescriptionInfoPoint();
-        this.descriptionInfoPointEl = this.createDescrtionInfoPoint();
+        this.descriptionInfoPointEl = this.createDescrtionInfoPoint(initialValue);
         if(this.infoPointListEl){
             this.section.insertBefore(this.descriptionInfoPointEl, this.infoPointListEl.nextSibling);
         }else{

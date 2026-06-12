@@ -29,6 +29,8 @@ class InfoPointRuntime {
     this.tmpWorldPosition = new THREE.Vector3();
     this.tmpScreenPosition = new THREE.Vector3();
     this.tmpScale = new THREE.Vector3();
+    this.modelSize = new THREE.Vector3();
+    this.markerRadius = this.computeMarkerRadius();
 
     this.panel = this.createPanel();
 
@@ -89,7 +91,7 @@ class InfoPointRuntime {
       const localCenter = this.markerRoot.worldToLocal(worldCenter.clone());
 
       const size = box.getSize(new THREE.Vector3());
-      const radius = Math.max(size.length() * 0.03, 0.025);
+      const radius = this.markerRadius;
 
       const marker = new THREE.Mesh(
         new THREE.SphereGeometry(radius, 24, 24),
@@ -108,7 +110,7 @@ class InfoPointRuntime {
 
       // Offset semplice verso l'alto rispetto al gruppo di mesh selezionato.
       marker.position.copy(localCenter);
-      marker.position.y += Math.max(size.y * 0.65, radius * 2.5);
+      marker.position.y += this.clamp(size.y * 0.25, radius * 2.5, radius * 6);
 
       marker.userData.infoPoint = info;
       marker.userData.pickRadius = radius;
@@ -272,6 +274,17 @@ class InfoPointRuntime {
     }
 
     return best;
+  }
+
+  computeMarkerRadius() {
+    const box = new THREE.Box3().setFromObject(this.modelRoot);
+    const maxModelDim = Math.max(...box.getSize(this.modelSize).toArray());
+    if (!Number.isFinite(maxModelDim) || maxModelDim <= 0) return 0.035;
+    return this.clamp(maxModelDim * 0.025, 0.025, 0.055);
+  }
+
+  clamp(value, min, max) {
+    return Math.min(Math.max(value, min), max);
   }
 
   getProjectedMarkerRadiusPx(marker, camera, rect) {

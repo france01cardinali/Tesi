@@ -380,7 +380,7 @@ body:not(.ar-mode) #ar-btn-host { right: auto; }
   color: white;
   font: 14px/1.2 sans-serif;
   border-radius: 10px;
-  pointer-events: none; /* non blocca i tocchi */
+  pointer-events: none;
   white-space: pre;
 }
 
