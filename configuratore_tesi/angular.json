@@ -3,7 +3,7 @@
   "version": 1,
   "newProjectRoot": "projects",
   "projects": {
-    "configuratore_tirocinio": {
+    "configuratore_tesi": {
       "projectType": "application",
       "schematics": {},
       "root": "",
@@ -13,7 +13,7 @@
         "build": {
           "builder": "@angular-devkit/build-angular:application",
           "options": {
-            "outputPath": "dist/configuratore_tirocinio",
+            "outputPath": "dist/configuratore_tesi",
             "index": "src/index.html",
             "browser": "src/main.ts",
             "polyfills": [
@@ -60,10 +60,10 @@
           "builder": "@angular-devkit/build-angular:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "configuratore_tirocinio:build:production"
+              "buildTarget": "configuratore_tesi:build:production"
             },
             "development": {
-              "buildTarget": "configuratore_tirocinio:build:development"
+              "buildTarget": "configuratore_tesi:build:development"
             }
           },
           "defaultConfiguration": "development"

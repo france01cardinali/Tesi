@@ -1,11 +1,11 @@
-# Configuratore tirocinio
+# Configuratore tesi
 
 ## Avvio progetto
 
 Apri due terminali nella cartella del progetto:
 
 ```bash
-cd configuratore_tirocinio
+cd configuratore_tesi
 ```
 
 ### 1. Backend HTTPS
