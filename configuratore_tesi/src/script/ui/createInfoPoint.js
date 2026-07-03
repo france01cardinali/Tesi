@@ -1,6 +1,11 @@
 import * as THREE from "three";
 import { renderMarkdownToElement } from "./renderMarkdown.js";
 
+const MARKER_RADIUS_RATIO = 0.014;
+const MIN_MARKER_RADIUS = 0.01;
+const MAX_MARKER_RADIUS = 0.03;
+const FALLBACK_MARKER_RADIUS = 0.018;
+
 export function createInfoPoint(viewer, infoPoint) {
   if (viewer._infoPointRuntime) {
     viewer._infoPointRuntime.dispose();
@@ -67,6 +72,9 @@ class InfoPointRuntime {
   }
 
   createMarkers() {
+    const modelBox = new THREE.Box3().setFromObject(this.modelRoot);
+    const modelCenter = modelBox.getCenter(new THREE.Vector3());
+
     this.infoPoints.forEach((info) => {
       const parts = normalizeParts(info.parte);
       const targets = parts
@@ -88,10 +96,17 @@ class InfoPointRuntime {
       if (box.isEmpty()) return;
 
       const worldCenter = box.getCenter(new THREE.Vector3());
-      const localCenter = this.markerRoot.worldToLocal(worldCenter.clone());
 
       const size = box.getSize(new THREE.Vector3());
       const radius = this.markerRadius;
+      const markerPosition = this.computeMarkerPosition({
+        box,
+        modelCenter,
+        size,
+        radius,
+        worldCenter
+      });
+      const localPosition = this.markerRoot.worldToLocal(markerPosition);
 
       const marker = new THREE.Mesh(
         new THREE.SphereGeometry(radius, 24, 24),
@@ -108,9 +123,7 @@ class InfoPointRuntime {
 
       marker.name = `info-point-${info.name || "unnamed"}`;
 
-      // Offset semplice verso l'alto rispetto al gruppo di mesh selezionato.
-      marker.position.copy(localCenter);
-      marker.position.y += this.clamp(size.y * 0.25, radius * 2.5, radius * 6);
+      marker.position.copy(localPosition);
 
       marker.userData.infoPoint = info;
       marker.userData.pickRadius = radius;
@@ -119,6 +132,17 @@ class InfoPointRuntime {
       this.markerRoot.add(marker);
       this.markers.push(marker);
     });
+  }
+
+  computeMarkerPosition({ box, modelCenter, size, radius, worldCenter }) {
+    const direction = worldCenter.y < modelCenter.y ? -1 : 1;
+    const clearance = this.clamp(size.y * 0.25, radius * 2.5, radius * 6);
+    const edgeY = direction > 0 ? box.max.y : box.min.y;
+    const markerPosition = worldCenter.clone();
+
+    markerPosition.y = edgeY + direction * (radius + clearance);
+
+    return markerPosition;
   }
 
   findObjectByName(name) {
@@ -279,8 +303,14 @@ class InfoPointRuntime {
   computeMarkerRadius() {
     const box = new THREE.Box3().setFromObject(this.modelRoot);
     const maxModelDim = Math.max(...box.getSize(this.modelSize).toArray());
-    if (!Number.isFinite(maxModelDim) || maxModelDim <= 0) return 0.035;
-    return this.clamp(maxModelDim * 0.025, 0.025, 0.055);
+    if (!Number.isFinite(maxModelDim) || maxModelDim <= 0) {
+      return FALLBACK_MARKER_RADIUS;
+    }
+    return this.clamp(
+      maxModelDim * MARKER_RADIUS_RATIO,
+      MIN_MARKER_RADIUS,
+      MAX_MARKER_RADIUS
+    );
   }
 
   clamp(value, min, max) {
