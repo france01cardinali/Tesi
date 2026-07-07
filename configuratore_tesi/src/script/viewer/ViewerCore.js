@@ -73,12 +73,7 @@ export class ViewerCore {
 
             onFrame?.(time, frame);
 
-            
-            const cameraToUse = this.renderer.xr.isPresenting
-                ? this.renderer.xr.getCamera(this.camera)
-                : this.camera;
-
-            this.renderer.render(this.scene, cameraToUse);
+            this.renderer.render(this.scene, this.camera);
         });
 
     }

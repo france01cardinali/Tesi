@@ -63,8 +63,8 @@ this.core.modelRoot.add(this.pivot);
     // Fit camera al volume attuale del modello.
     const size = box.getSize(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z);
-    this.core.camera.near = Math.max(0.001, maxDim / 100);
-    this.core.camera.far = maxDim * 100;
+    this.core.camera.near = Math.max(0.01, Math.min(0.05, maxDim / 100));
+    this.core.camera.far = Math.max(20, maxDim * 100);
     this.core.camera.updateProjectionMatrix();
     this.core.camera.position.set(
       center.x,
